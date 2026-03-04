@@ -10,7 +10,7 @@ Define the official technology stack and implementation conventions for `dr-ston
 
 - Deployment target: Cloudflare Pages
 - Runtime model: static frontend (SPA) consuming backend Worker API
-- Backend API base URL provided via `VITE_API_BASE_URL`
+- Backend API base URL provided via `API_BASE_URL`
 - Node.js version: `24.14.0`
 
 ## Core Stack

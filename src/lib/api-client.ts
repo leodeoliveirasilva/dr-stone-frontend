@@ -1,6 +1,9 @@
 import type { ApiErrorResponse } from '@/types/api'
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8787').replace(/\/$/, '')
+const API_BASE_URL = (
+  import.meta.env.API_BASE_URL ||
+  'http://127.0.0.1:8787'
+).replace(/\/$/, '')
 
 export class ApiClientError extends Error {
   public readonly status: number
