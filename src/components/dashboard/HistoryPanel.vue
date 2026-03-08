@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatCurrency, formatDateTime } from '@/lib/formatters'
 import type { ProductHistoryEntry, TrackedProduct } from '@/types/api'
 
 defineProps<{
@@ -9,7 +10,7 @@ defineProps<{
 </script>
 
 <template>
-  <div class="panel-block">
+  <div class="panel-block panel-block--embedded">
     <div class="panel-header-row">
       <h2 class="panel-title">Price History</h2>
       <span class="panel-chip">{{ rows.length }}</span>
@@ -24,6 +25,7 @@ defineProps<{
         <thead>
           <tr>
             <th>Captured</th>
+            <th>Product</th>
             <th>Price</th>
             <th>Seller</th>
             <th>Link</th>
@@ -31,16 +33,17 @@ defineProps<{
         </thead>
         <tbody>
           <tr v-if="loading">
-            <td colspan="4" class="empty-cell">Loading history...</td>
+            <td colspan="5" class="empty-cell">Loading history...</td>
           </tr>
           <tr v-else-if="!rows.length">
-            <td colspan="4" class="empty-cell">No history available for the selected product.</td>
+            <td colspan="5" class="empty-cell">No history available for the selected product.</td>
           </tr>
           <tr v-for="row in rows" :key="`${row.search_run_id}-${row.captured_at}-${row.canonical_url}`">
-            <td>{{ new Date(row.captured_at).toLocaleString() }}</td>
-            <td>{{ row.currency }} {{ row.price }}</td>
-            <td>{{ row.seller_name || 'unknown' }}</td>
-            <td>
+            <td data-label="Captured">{{ formatDateTime(row.captured_at) }}</td>
+            <td data-label="Product">{{ row.product_title }}</td>
+            <td data-label="Price">{{ formatCurrency(Number(row.price), row.currency) }}</td>
+            <td data-label="Seller">{{ row.seller_name || 'unknown' }}</td>
+            <td data-label="Link">
               <a class="table-link" :href="row.canonical_url" rel="noreferrer" target="_blank">open</a>
             </td>
           </tr>

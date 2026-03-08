@@ -29,7 +29,7 @@ export interface SearchRunItem {
   currency: string
   seller_name: string | null
   availability: string
-  is_available: boolean
+  is_available: boolean | number
   position: number
   captured_at: string
 }
@@ -50,7 +50,7 @@ export interface SearchRun {
   message: string | null
   created_at: string
   tracked_product_title: string | null
-  tracked_product_active: boolean | null
+  tracked_product_active: boolean | number | null
   items: SearchRunItem[]
 }
 
@@ -83,4 +83,27 @@ export interface CollectResult {
   total_results: number
   matched_results: number
   page_count: number
+}
+
+export interface LegacyTrackedProductResponse {
+  id: string
+  product_title: string
+  search_term?: string
+  search_terms?: string[]
+  active: boolean | number
+  created_at: string
+  updated_at: string
+  source_name?: string
+  scrapes_per_day?: number
+}
+
+export interface LegacyProductHistoryEntryResponse {
+  captured_at: string
+  product_title: string
+  canonical_url: string
+  price?: string
+  price_value?: string
+  currency: string
+  seller_name: string | null
+  search_run_id: string
 }

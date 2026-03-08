@@ -16,7 +16,7 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="panel-block">
+  <div class="panel-block panel-block--embedded">
     <div class="panel-header-row">
       <h2 class="panel-title">Tracked Products</h2>
       <span class="panel-chip">{{ products.length }}</span>
@@ -42,20 +42,20 @@ const emit = defineEmits<{
             :key="product.id"
             :class="{ 'row-selected': product.id === selectedProductId }"
           >
-            <td>{{ product.product_title }}</td>
-            <td>
+            <td data-label="Title">{{ product.product_title }}</td>
+            <td data-label="Search Terms">
               <div class="terms-stack">
                 <span v-for="term in product.search_terms" :key="`${product.id}-${term}`" class="term-pill">
                   {{ term }}
                 </span>
               </div>
             </td>
-            <td>
+            <td data-label="Status">
               <span :class="Boolean(product.active) ? 'badge-active' : 'badge-paused'">
                 {{ Boolean(product.active) ? 'active' : 'inactive' }}
               </span>
             </td>
-            <td>
+            <td data-label="Actions">
               <div class="table-actions">
                 <button class="btn btn-mini" type="button" @click="emit('edit', product.id)">Edit</button>
                 <button class="btn btn-mini" type="button" @click="emit('history', product.id)">History</button>

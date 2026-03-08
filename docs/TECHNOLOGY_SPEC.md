@@ -1,6 +1,6 @@
 # Frontend Technology Specification
 
-Last updated: 2026-03-04
+Last updated: 2026-03-08
 
 ## Objective
 
@@ -11,6 +11,7 @@ Define the official technology stack and implementation conventions for `dr-ston
 - Deployment target: Cloudflare Pages
 - Runtime model: static frontend (SPA) consuming backend Worker API
 - Backend API base URL provided via `API_BASE_URL`
+- Current live API endpoint: `https://dr-stone-api-production.up.railway.app`
 - Node.js version: `24.14.0`
 
 ## Core Stack

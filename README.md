@@ -26,10 +26,16 @@ npm install
 npm run dev
 ```
 
-Create `.env.local` when needed:
+The frontend falls back to the live Railway API by default:
 
 ```bash
-API_BASE_URL=http://127.0.0.1:8787
+https://dr-stone-api-production.up.railway.app
+```
+
+Create `.env.local` only when you want to override that base URL:
+
+```bash
+API_BASE_URL=https://dr-stone-api-production.up.railway.app
 ```
 
 ## Build

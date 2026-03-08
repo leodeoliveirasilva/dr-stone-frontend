@@ -3,11 +3,42 @@ import { computed, ref, shallowRef } from 'vue'
 import { apiRequest } from '@/lib/api-client'
 import type {
   CollectResult,
+  LegacyProductHistoryEntryResponse,
+  LegacyTrackedProductResponse,
   ProductHistoryEntry,
   SearchRunsResponse,
   TrackedProduct,
   UpsertTrackedProductPayload
 } from '@/types/api'
+
+function normalizeTrackedProduct(product: LegacyTrackedProductResponse): TrackedProduct {
+  const searchTerms = Array.isArray(product.search_terms)
+    ? product.search_terms.filter(Boolean)
+    : product.search_term
+      ? [product.search_term]
+      : []
+
+  return {
+    id: product.id,
+    product_title: product.product_title,
+    search_terms: searchTerms,
+    active: Boolean(product.active),
+    created_at: product.created_at,
+    updated_at: product.updated_at
+  }
+}
+
+function normalizeHistoryEntry(entry: LegacyProductHistoryEntryResponse): ProductHistoryEntry {
+  return {
+    captured_at: entry.captured_at,
+    product_title: entry.product_title,
+    canonical_url: entry.canonical_url,
+    price: entry.price ?? entry.price_value ?? '0',
+    currency: entry.currency,
+    seller_name: entry.seller_name,
+    search_run_id: entry.search_run_id
+  }
+}
 
 export function useDrStoneApi() {
   const products = ref<TrackedProduct[]>([])
@@ -37,7 +68,8 @@ export function useDrStoneApi() {
     setStatus('Loading tracked products...')
     try {
       const query = includeInactive ? '?all=1' : ''
-      products.value = await apiRequest<TrackedProduct[]>(`/tracked-products${query}`)
+      const response = await apiRequest<LegacyTrackedProductResponse[]>(`/tracked-products${query}`)
+      products.value = response.map(normalizeTrackedProduct)
       setStatus(`Loaded ${products.value.length} tracked product(s).`)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to load tracked products.'
@@ -71,9 +103,10 @@ export function useDrStoneApi() {
     selectedProductId.value = trackedProductId
     setStatus('Loading product history...')
     try {
-      historyRows.value = await apiRequest<ProductHistoryEntry[]>(
+      const response = await apiRequest<LegacyProductHistoryEntryResponse[]>(
         `/tracked-products/${trackedProductId}/history?limit=${limit}`
       )
+      historyRows.value = response.map(normalizeHistoryEntry)
       setStatus(`Loaded ${historyRows.value.length} history row(s).`)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to load history.'
@@ -88,7 +121,10 @@ export function useDrStoneApi() {
     setStatus('Creating tracked product...')
     await apiRequest<TrackedProduct>('/tracked-products', {
       method: 'POST',
-      body: JSON.stringify(payload)
+      body: JSON.stringify({
+        ...payload,
+        search_term: payload.search_terms[0] ?? ''
+      })
     })
     await refreshProducts(true)
   }
@@ -97,7 +133,10 @@ export function useDrStoneApi() {
     setStatus('Updating tracked product...')
     await apiRequest<TrackedProduct>(`/tracked-products/${productId}`, {
       method: 'PUT',
-      body: JSON.stringify(payload)
+      body: JSON.stringify({
+        ...payload,
+        search_term: payload.search_terms[0] ?? ''
+      })
     })
     await refreshProducts(true)
   }
