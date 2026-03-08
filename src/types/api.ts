@@ -87,7 +87,8 @@ export interface CollectResult {
 
 export interface LegacyTrackedProductResponse {
   id: string
-  product_title: string
+  product_title?: string
+  title?: string
   search_term?: string
   search_terms?: string[]
   active: boolean | number

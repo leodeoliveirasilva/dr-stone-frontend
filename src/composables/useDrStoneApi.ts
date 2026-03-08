@@ -17,10 +17,11 @@ function normalizeTrackedProduct(product: LegacyTrackedProductResponse): Tracked
     : product.search_term
       ? [product.search_term]
       : []
+  const productTitle = product.product_title ?? product.title ?? ''
 
   return {
     id: product.id,
-    product_title: product.product_title,
+    product_title: productTitle,
     search_terms: searchTerms,
     active: Boolean(product.active),
     created_at: product.created_at,
