@@ -18,6 +18,7 @@ const todayUtc = new Date().toISOString().slice(0, 10)
 const selectedDate = shallowRef(todayUtc)
 const activeTab = shallowRef<DashboardTab>('dashboard')
 const editingProductId = shallowRef<string | null>(null)
+const productFormInstanceKey = shallowRef(0)
 const sidebarOpen = shallowRef(false)
 const overviewProductId = shallowRef<string | null>(null)
 const overviewRange = shallowRef<'7d' | '30d' | '90d'>('30d')
@@ -136,6 +137,7 @@ function setActiveTab(tab: DashboardTab) {
 
 function openProductsTab() {
   editingProductId.value = null
+  productFormInstanceKey.value += 1
   setActiveTab('products')
 }
 
@@ -156,6 +158,7 @@ async function handleSubmit(payload: UpsertTrackedProductPayload) {
   }
 
   await createProduct(payload)
+  productFormInstanceKey.value += 1
 }
 
 async function handleDelete(productId: string) {
@@ -261,6 +264,7 @@ onMounted(async () => {
           v-else-if="activeTab === 'products'"
           :action-loading-id="actionLoadingId"
           :editing-product="editingProduct"
+          :form-instance-key="productFormInstanceKey"
           :products="products"
           :products-loading="productsLoading"
           :selected-product-id="selectedProductId"

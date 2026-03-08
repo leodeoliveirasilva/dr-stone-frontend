@@ -9,6 +9,7 @@ import ProductsTable from './ProductsTable.vue'
 const props = defineProps<{
   products: TrackedProduct[]
   editingProduct: TrackedProduct | null
+  formInstanceKey: number
   productsLoading: boolean
   actionLoadingId: string | null
   selectedProductId: string | null
@@ -46,6 +47,7 @@ const activeCount = computed(() => props.products.filter((product) => Boolean(pr
     <section class="content-grid content-grid--products">
       <article class="surface">
         <ProductForm
+          :key="formInstanceKey"
           :busy="productsLoading"
           :product="editingProduct"
           @cancel="emit('cancelEdit')"
