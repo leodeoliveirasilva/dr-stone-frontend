@@ -127,7 +127,9 @@ export function useDrStoneApi() {
         method: 'POST'
       })
       await refreshRuns(new Date().toISOString().slice(0, 10))
-      setStatus('Manual collection finished and persisted.')
+      setStatus(
+        `Manual collection finished: ${result.successful_runs} source run(s) succeeded, ${result.failed_runs} failed.`
+      )
       return result
     } finally {
       actionLoadingId.value = null

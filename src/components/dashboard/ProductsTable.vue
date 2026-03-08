@@ -21,22 +21,21 @@ const emit = defineEmits<{
       <h2 class="panel-title">Tracked Products</h2>
       <span class="panel-chip">{{ products.length }}</span>
     </div>
-    <p class="panel-copy">Catalog state from `GET /tracked-products?all=1`.</p>
+    <p class="panel-copy">Catalog state from `GET /tracked-products?all=1`. Collection cadence is global.</p>
 
     <div class="table-wrap">
       <table class="table">
         <thead>
           <tr>
             <th>Title</th>
-            <th>Search Term</th>
-            <th>Scrapes/Day</th>
+            <th>Search Terms</th>
             <th>Status</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody>
           <tr v-if="!products.length">
-            <td colspan="5" class="empty-cell">No products tracked yet.</td>
+            <td colspan="4" class="empty-cell">No products tracked yet.</td>
           </tr>
           <tr
             v-for="product in products"
@@ -44,8 +43,13 @@ const emit = defineEmits<{
             :class="{ 'row-selected': product.id === selectedProductId }"
           >
             <td>{{ product.product_title }}</td>
-            <td>{{ product.search_term }}</td>
-            <td>{{ product.scrapes_per_day }}</td>
+            <td>
+              <div class="terms-stack">
+                <span v-for="term in product.search_terms" :key="`${product.id}-${term}`" class="term-pill">
+                  {{ term }}
+                </span>
+              </div>
+            </td>
             <td>
               <span :class="Boolean(product.active) ? 'badge-active' : 'badge-paused'">
                 {{ Boolean(product.active) ? 'active' : 'inactive' }}

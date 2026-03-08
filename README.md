@@ -2,6 +2,9 @@
 
 Frontend repository for Dr. Stone dashboard UI.
 
+The current UI targets the backend contract where tracked products use `search_terms`, collection runs across all
+registered sources, and collection cadence is global rather than configured per product.
+
 ## Scope
 
 This project contains:

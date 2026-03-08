@@ -92,7 +92,8 @@ onMounted(async () => {
       <p class="eyebrow">Dr. Stone Frontend</p>
       <h1 class="hero-title">Backend Operations Console</h1>
       <p class="hero-copy">
-        Vue dashboard powered by documented Worker endpoints for tracked products, scrape runs, and historical prices.
+        Vue dashboard powered by documented API endpoints for multi-term tracked products, source-wide search runs, and
+        historical prices.
       </p>
     </section>
 

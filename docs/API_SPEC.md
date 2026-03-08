@@ -1,6 +1,6 @@
 # Dr. Stone Backend API Specification (Frontend Use)
 
-Last updated: 2026-03-04
+Last updated: 2026-03-08
 
 Base URL examples:
 
@@ -11,6 +11,9 @@ Base URL examples:
 
 - Content type: JSON for request and response bodies except `DELETE` returning `204` empty body
 - Date format for `date` query: `YYYY-MM-DD` (UTC)
+- Tracked products are source-agnostic and collected across all registered backend sources.
+- Tracked products use `search_terms` with a minimum of 1 and maximum of 5 entries.
+- Collection cadence is global and is not configured per product.
 - Generic error shape:
 
 ```json
@@ -63,11 +66,9 @@ Base URL examples:
 [
   {
     "id": "2ac7f8f2...",
-    "source_name": "kabum",
-    "product_title": "RX 9070 XT",
-    "search_term": "RX 9070 XT",
-    "scrapes_per_day": 4,
-    "active": 1,
+    "product_title": "RX 9070 XT Sapphire",
+    "search_terms": ["RX 9070 XT", "Sapphire"],
+    "active": true,
     "created_at": "2026-03-04T12:00:00+00:00",
     "updated_at": "2026-03-04T12:00:00+00:00"
   }
@@ -82,10 +83,8 @@ Base URL examples:
 
 ```json
 {
-  "title": "RX 9070 XT",
-  "search_term": "RX 9070 XT",
-  "source": "kabum",
-  "scrapes_per_day": 4,
+  "title": "RX 9070 XT Sapphire",
+  "search_terms": ["RX 9070 XT", "Sapphire"],
   "active": true
 }
 ```
@@ -93,6 +92,9 @@ Base URL examples:
 - Success `201`: created tracked product row
 - Errors:
 - `400` missing/invalid fields
+- `400` if `search_terms` has more than 5 entries
+- `400` if `scrapes_per_day` is sent
+- Legacy compatibility: backend still accepts a single `search_term` field when `search_terms` is omitted
 
 ### 5) Get tracked product by id
 
@@ -110,10 +112,8 @@ Base URL examples:
 
 ```json
 {
-  "title": "RX 9070 XT Nitro",
-  "search_term": "RX 9070 XT",
-  "source": "kabum",
-  "scrapes_per_day": 6,
+  "title": "RX 9070 XT Sapphire Nitro",
+  "search_terms": ["RX 9070 XT", "Sapphire", "Nitro"],
   "active": true
 }
 ```
@@ -145,7 +145,7 @@ Base URL examples:
     "captured_at": "2026-03-04T13:00:00+00:00",
     "product_title": "Placa de Video RX 9070 XT",
     "canonical_url": "https://www.kabum.com.br/produto/123/rx-9070-xt",
-    "price_value": "5299.99",
+    "price": "5299.99",
     "currency": "BRL",
     "seller_name": "KaBuM!",
     "search_run_id": "5de13d9d..."
@@ -174,8 +174,8 @@ Base URL examples:
       "id": "5de13d9d...",
       "tracked_product_id": "2ac7f8f2...",
       "source_name": "kabum",
-      "search_term": "RX 9070 XT",
-      "search_url": "https://www.kabum.com.br/busca/rx-9070-xt",
+      "search_term": "RX 9070 XT Sapphire",
+      "search_url": "https://www.kabum.com.br/busca/rx-9070-xt-sapphire",
       "status": "succeeded",
       "started_at": "2026-03-04T13:00:00+00:00",
       "finished_at": "2026-03-04T13:00:12+00:00",
@@ -185,18 +185,18 @@ Base URL examples:
       "page_count": 3,
       "message": "lowest_prices_saved",
       "created_at": "2026-03-04T13:00:00+00:00",
-      "tracked_product_title": "RX 9070 XT",
-      "tracked_product_active": 1,
+      "tracked_product_title": "RX 9070 XT Sapphire",
+      "tracked_product_active": true,
       "items": [
         {
           "search_run_id": "5de13d9d...",
-          "product_title": "Placa de Video RX 9070 XT",
+          "product_title": "Placa de Video Sapphire Pulse Radeon RX 9070 XT 16GB",
           "canonical_url": "https://www.kabum.com.br/produto/123/rx-9070-xt",
           "price_value": "5299.99",
           "currency": "BRL",
           "seller_name": "KaBuM!",
           "availability": "in_stock",
-          "is_available": 1,
+          "is_available": true,
           "position": 2,
           "captured_at": "2026-03-04T13:00:11+00:00"
         }
@@ -214,13 +214,18 @@ Base URL examples:
 - Method: `POST`
 - Path: `/collect-due`
 - Input: none
+- Notes:
+- Compatibility endpoint.
+- Currently behaves like collecting all active tracked products because cadence is global.
 - Success `200`:
 
 ```json
 [
   {
     "tracked_product_id": "2ac7f8f2...",
-    "search_run_id": "5de13d9d...",
+    "search_run_ids": ["5de13d9d...", "11ee9c3a..."],
+    "successful_runs": 2,
+    "failed_runs": 0,
     "total_results": 53,
     "matched_results": 4,
     "page_count": 3
@@ -240,7 +245,9 @@ Base URL examples:
 ```json
 {
   "tracked_product_id": "2ac7f8f2...",
-  "search_run_id": "5de13d9d...",
+  "search_run_ids": ["5de13d9d...", "11ee9c3a..."],
+  "successful_runs": 2,
+  "failed_runs": 0,
   "total_results": 53,
   "matched_results": 4,
   "page_count": 3
@@ -254,6 +261,7 @@ Base URL examples:
 ## Frontend Integration Notes
 
 - Use `all=1` for product management screens so inactive rows remain visible.
-- Treat `active` and `is_available` as numeric flags (`1`/`0`).
+- Render tracked product terms as a list, not a single string.
+- Treat `active`, `tracked_product_active`, and `is_available` as booleans.
 - Always send `content-type: application/json` for `POST/PUT/PATCH`.
 - Parse and display `error` from non-2xx responses.

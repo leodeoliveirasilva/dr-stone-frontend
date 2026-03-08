@@ -14,11 +14,9 @@ export interface RootResponse {
 
 export interface TrackedProduct {
   id: string
-  source_name: string
   product_title: string
-  search_term: string
-  scrapes_per_day: number
-  active: number
+  search_terms: string[]
+  active: boolean
   created_at: string
   updated_at: string
 }
@@ -31,7 +29,7 @@ export interface SearchRunItem {
   currency: string
   seller_name: string | null
   availability: string
-  is_available: number
+  is_available: boolean
   position: number
   captured_at: string
 }
@@ -52,7 +50,7 @@ export interface SearchRun {
   message: string | null
   created_at: string
   tracked_product_title: string | null
-  tracked_product_active: number | null
+  tracked_product_active: boolean | null
   items: SearchRunItem[]
 }
 
@@ -65,7 +63,7 @@ export interface ProductHistoryEntry {
   captured_at: string
   product_title: string
   canonical_url: string
-  price_value: string
+  price: string
   currency: string
   seller_name: string | null
   search_run_id: string
@@ -73,15 +71,15 @@ export interface ProductHistoryEntry {
 
 export interface UpsertTrackedProductPayload {
   title: string
-  search_term: string
-  source: string
-  scrapes_per_day: number
+  search_terms: string[]
   active: boolean
 }
 
 export interface CollectResult {
   tracked_product_id: string
-  search_run_id: string
+  search_run_ids: string[]
+  successful_runs: number
+  failed_runs: number
   total_results: number
   matched_results: number
   page_count: number

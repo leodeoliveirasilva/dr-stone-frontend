@@ -135,6 +135,13 @@ body {
   gap: 8px;
 }
 
+.field-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .field-row {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -165,6 +172,37 @@ input:focus {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+}
+
+.field-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.search-terms-list,
+.terms-stack {
+  display: grid;
+  gap: 8px;
+}
+
+.search-term-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.term-pill {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--accent-soft);
+  font-size: 0.78rem;
+  font-weight: 700;
 }
 
 .action-row,
@@ -293,6 +331,11 @@ input:focus {
   }
 
   .field-row {
+    grid-template-columns: 1fr;
+  }
+
+  .field-header,
+  .search-term-row {
     grid-template-columns: 1fr;
   }
 }

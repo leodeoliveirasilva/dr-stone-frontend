@@ -3,6 +3,8 @@ import { reactive, watch } from 'vue'
 
 import type { TrackedProduct, UpsertTrackedProductPayload } from '@/types/api'
 
+const MAX_SEARCH_TERMS = 5
+
 const props = defineProps<{
   product: TrackedProduct | null
   busy: boolean
@@ -13,11 +15,9 @@ const emit = defineEmits<{
   cancel: []
 }>()
 
-const form = reactive<UpsertTrackedProductPayload>({
+const form = reactive({
   title: '',
-  search_term: '',
-  source: 'kabum',
-  scrapes_per_day: 4,
+  searchTerms: [''],
   active: true
 })
 
@@ -25,28 +25,43 @@ watch(
   () => props.product,
   (product) => {
     if (!product) {
-      form.title = ''
-      form.search_term = ''
-      form.source = 'kabum'
-      form.scrapes_per_day = 4
-      form.active = true
+      resetForm()
       return
     }
     form.title = product.product_title
-    form.search_term = product.search_term
-    form.source = product.source_name
-    form.scrapes_per_day = Number(product.scrapes_per_day)
+    form.searchTerms = product.search_terms.length ? [...product.search_terms] : ['']
     form.active = Boolean(product.active)
   },
   { immediate: true }
 )
 
+function resetForm() {
+  form.title = ''
+  form.searchTerms = ['']
+  form.active = true
+}
+
+function addSearchTerm() {
+  if (form.searchTerms.length >= MAX_SEARCH_TERMS) {
+    return
+  }
+  form.searchTerms.push('')
+}
+
+function removeSearchTerm(index: number) {
+  if (form.searchTerms.length === 1) {
+    form.searchTerms[0] = ''
+    return
+  }
+  form.searchTerms.splice(index, 1)
+}
+
 function submit() {
+  const searchTerms = form.searchTerms.map((term) => term.trim()).filter(Boolean)
+
   emit('submit', {
     title: form.title.trim(),
-    search_term: form.search_term.trim(),
-    source: form.source.trim() || 'kabum',
-    scrapes_per_day: Number(form.scrapes_per_day),
+    search_terms: searchTerms,
     active: Boolean(form.active)
   })
 }
@@ -55,28 +70,48 @@ function submit() {
 <template>
   <form class="product-form" @submit.prevent="submit">
     <h2 class="panel-title">Tracked Product</h2>
-    <p class="panel-copy">Create or edit search terms that feed the backend collector.</p>
+    <p class="panel-copy">
+      Create or edit up to 5 search terms. The backend runs every tracked product against all registered sources.
+    </p>
 
     <label class="field">
       <span class="field-label">Title</span>
-      <input v-model="form.title" required autocomplete="off" placeholder="RX 9070 XT" />
+      <input v-model="form.title" required autocomplete="off" placeholder="RX 9070 XT Sapphire" />
     </label>
 
-    <label class="field">
-      <span class="field-label">Search Term</span>
-      <input v-model="form.search_term" required autocomplete="off" placeholder="RX 9070 XT" />
-    </label>
+    <div class="field search-terms-field">
+      <div class="field-header">
+        <span class="field-label">Search Terms</span>
+        <button
+          class="btn btn-mini btn-ghost"
+          :disabled="busy || form.searchTerms.length >= MAX_SEARCH_TERMS"
+          type="button"
+          @click="addSearchTerm"
+        >
+          Add Term
+        </button>
+      </div>
 
-    <div class="field-row">
-      <label class="field">
-        <span class="field-label">Source</span>
-        <input v-model="form.source" required autocomplete="off" placeholder="kabum" />
-      </label>
+      <div class="search-terms-list">
+        <div v-for="(term, index) in form.searchTerms" :key="`search-term-${index}`" class="search-term-row">
+          <input
+            v-model="form.searchTerms[index]"
+            required
+            autocomplete="off"
+            :placeholder="index === 0 ? 'RX 9070 XT' : 'Sapphire'"
+          />
+          <button
+            class="btn btn-mini btn-ghost"
+            :disabled="busy"
+            type="button"
+            @click="removeSearchTerm(index)"
+          >
+            Remove
+          </button>
+        </div>
+      </div>
 
-      <label class="field">
-        <span class="field-label">Scrapes / Day</span>
-        <input v-model.number="form.scrapes_per_day" min="1" max="1440" type="number" required />
-      </label>
+      <p class="field-hint">All terms must match the scraped title. Maximum: 5.</p>
     </div>
 
     <label class="field-checkbox">

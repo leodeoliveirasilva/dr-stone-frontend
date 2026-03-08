@@ -38,7 +38,7 @@ defineProps<{
           </tr>
           <tr v-for="row in rows" :key="`${row.search_run_id}-${row.captured_at}-${row.canonical_url}`">
             <td>{{ new Date(row.captured_at).toLocaleString() }}</td>
-            <td>{{ row.currency }} {{ row.price_value }}</td>
+            <td>{{ row.currency }} {{ row.price }}</td>
             <td>{{ row.seller_name || 'unknown' }}</td>
             <td>
               <a class="table-link" :href="row.canonical_url" rel="noreferrer" target="_blank">open</a>

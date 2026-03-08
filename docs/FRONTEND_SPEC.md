@@ -1,6 +1,6 @@
 # Frontend Product Specification
 
-Last updated: 2026-03-04
+Last updated: 2026-03-08
 
 This specification was moved from backend planning notes into `dr-stone-frontend` to keep frontend and backend concerns separate.
 
@@ -29,6 +29,7 @@ Build a dashboard UI that allows users to:
 1. Product management
 - create tracked product
 - edit tracked product
+- manage up to 5 search terms per product
 - delete tracked product
 - trigger manual collect action
 
@@ -65,3 +66,9 @@ Build a dashboard UI that allows users to:
 - frontend dashboard implementation
 - API endpoint documentation for frontend integration
 - frontend deploy pipeline on Cloudflare Pages
+
+## Current Backend Contract Notes
+
+- Tracked products are source-agnostic.
+- Collection always runs across all registered backend sources.
+- Per-product `scrapes_per_day` is removed from the UI contract because collection cadence is global.
