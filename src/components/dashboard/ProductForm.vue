@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, watch } from 'vue'
+import { computed, nextTick, reactive, useTemplateRef, watch } from 'vue'
 
 import type { TrackedProduct, UpsertTrackedProductPayload } from '@/types/api'
 
@@ -17,9 +17,14 @@ const emit = defineEmits<{
 
 const form = reactive({
   title: '',
-  searchTerms: [''],
+  searchTerms: [] as string[],
+  pendingSearchTerm: '',
   active: true
 })
+
+const searchTermInput = useTemplateRef<HTMLInputElement>('searchTermInput')
+
+const canAddSearchTerm = computed(() => form.searchTerms.length < MAX_SEARCH_TERMS)
 
 watch(
   () => props.product,
@@ -29,7 +34,8 @@ watch(
       return
     }
     form.title = product.product_title
-    form.searchTerms = product.search_terms.length ? [...product.search_terms] : ['']
+    form.searchTerms = [...product.search_terms]
+    form.pendingSearchTerm = ''
     form.active = Boolean(product.active)
   },
   { immediate: true }
@@ -37,27 +43,71 @@ watch(
 
 function resetForm() {
   form.title = ''
-  form.searchTerms = ['']
+  form.searchTerms = []
+  form.pendingSearchTerm = ''
   form.active = true
 }
 
-function addSearchTerm() {
-  if (form.searchTerms.length >= MAX_SEARCH_TERMS) {
+function focusSearchTermInput() {
+  if (!canAddSearchTerm.value) {
     return
   }
-  form.searchTerms.push('')
+
+  nextTick(() => {
+    searchTermInput.value?.focus()
+  })
+}
+
+function clearSearchTermValidity() {
+  searchTermInput.value?.setCustomValidity('')
+}
+
+function addSearchTerm(rawTerm = form.pendingSearchTerm) {
+  const term = rawTerm.trim()
+
+  if (!term || !canAddSearchTerm.value) {
+    return
+  }
+
+  form.searchTerms.push(term)
+  form.pendingSearchTerm = ''
+  clearSearchTermValidity()
+  focusSearchTermInput()
 }
 
 function removeSearchTerm(index: number) {
-  if (form.searchTerms.length === 1) {
-    form.searchTerms[0] = ''
+  form.searchTerms.splice(index, 1)
+  clearSearchTermValidity()
+  focusSearchTermInput()
+}
+
+function handleSearchTermKeydown(event: KeyboardEvent) {
+  if (event.key !== 'Enter' && event.key !== ',') {
     return
   }
-  form.searchTerms.splice(index, 1)
+
+  event.preventDefault()
+  addSearchTerm()
 }
 
 function submit() {
-  const searchTerms = form.searchTerms.map((term) => term.trim()).filter(Boolean)
+  const pendingSearchTerm = form.pendingSearchTerm.trim()
+
+  if (pendingSearchTerm && form.searchTerms.length < MAX_SEARCH_TERMS) {
+    form.searchTerms.push(pendingSearchTerm)
+    form.pendingSearchTerm = ''
+  }
+
+  const searchTerms = [...form.searchTerms]
+
+  if (!searchTerms.length) {
+    searchTermInput.value?.setCustomValidity('Add at least one search term.')
+    searchTermInput.value?.reportValidity()
+    focusSearchTermInput()
+    return
+  }
+
+  clearSearchTermValidity()
 
   emit('submit', {
     title: form.title.trim(),
@@ -82,36 +132,46 @@ function submit() {
     <div class="field search-terms-field">
       <div class="field-header">
         <span class="field-label">Search Terms</span>
-        <button
-          class="btn btn-mini btn-ghost"
-          :disabled="busy || form.searchTerms.length >= MAX_SEARCH_TERMS"
-          type="button"
-          @click="addSearchTerm"
-        >
-          Add Term
-        </button>
+        <span class="field-meta">{{ form.searchTerms.length }}/{{ MAX_SEARCH_TERMS }}</span>
       </div>
 
-      <div class="search-terms-list">
-        <div v-for="(term, index) in form.searchTerms" :key="`search-term-${index}`" class="search-term-row">
-          <input
-            v-model="form.searchTerms[index]"
-            required
-            autocomplete="off"
-            :placeholder="index === 0 ? 'RX 9070 XT' : 'Sapphire'"
-          />
+      <div class="multi-input" :class="{ 'is-disabled': busy, 'is-full': !canAddSearchTerm }" @click="focusSearchTermInput">
+        <div v-for="(term, index) in form.searchTerms" :key="`${term}-${index}`" class="multi-input-pill">
+          <span class="multi-input-pill__label">{{ term }}</span>
           <button
-            class="btn btn-mini btn-ghost"
+            class="multi-input-pill__remove"
+            :aria-label="`Remove ${term}`"
             :disabled="busy"
             type="button"
             @click="removeSearchTerm(index)"
           >
-            Remove
+            ×
           </button>
         </div>
+
+        <input
+          v-if="canAddSearchTerm"
+          ref="searchTermInput"
+          v-model="form.pendingSearchTerm"
+          class="multi-input-field"
+          autocomplete="off"
+          :disabled="busy"
+          :placeholder="form.searchTerms.length ? 'Add another term' : 'Type a term and press Enter'"
+          @keydown="handleSearchTermKeydown"
+        />
+
+        <button
+          v-if="canAddSearchTerm"
+          class="btn btn-mini btn-ghost multi-input-action"
+          :disabled="busy || !form.pendingSearchTerm.trim()"
+          type="button"
+          @click="addSearchTerm()"
+        >
+          Add
+        </button>
       </div>
 
-      <p class="field-hint">All terms must match the scraped title. Maximum: 5.</p>
+      <p class="field-hint">All terms must match the scraped title. Press Enter or comma to add up to 5 terms.</p>
     </div>
 
     <label class="field-checkbox">
