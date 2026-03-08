@@ -2,7 +2,7 @@ import type { ApiErrorResponse } from '@/types/api'
 
 const API_BASE_URL = (
   import.meta.env.API_BASE_URL ||
-  'https://drstone-api.leogendaryo.com'
+  'https://dr-stone-api-production.up.railway.app'
 ).replace(/\/$/, '')
 
 export class ApiClientError extends Error {
