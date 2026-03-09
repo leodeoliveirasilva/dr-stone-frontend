@@ -2,10 +2,10 @@
 import { computed } from 'vue'
 
 import { formatCurrency } from '@/lib/formatters'
-import type { MockPricePoint } from '@/lib/dashboard-mocks'
+import type { DashboardOverviewPoint } from './dashboard.types'
 
 const props = defineProps<{
-  points: MockPricePoint[]
+  points: DashboardOverviewPoint[]
 }>()
 
 const chartWidth = 760
@@ -90,7 +90,7 @@ const chartMetrics = computed(() => {
       class="trend-chart__svg"
       :viewBox="`0 0 ${chartWidth} ${chartHeight}`"
       role="img"
-      aria-label="Mocked price history chart"
+      aria-label="Price history minimums chart"
     >
       <defs>
         <linearGradient id="trendAreaGradient" x1="0%" x2="0%" y1="0%" y2="100%">

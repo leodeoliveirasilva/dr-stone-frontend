@@ -1,35 +1,63 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-import { formatCompactNumber, formatCurrency, formatPercent } from '@/lib/formatters'
-import type { MockProductSeries } from '@/lib/dashboard-mocks'
+import { formatCompactNumber, formatCurrency, formatPercent, formatDate, formatDateTime } from '@/lib/formatters'
 import type { TrackedProduct } from '@/types/api'
 
 import DashboardTrendChart from './DashboardTrendChart.vue'
+import type { DashboardOverviewRange, DashboardOverviewSeries } from './dashboard.types'
 
 const props = defineProps<{
   products: TrackedProduct[]
   runsToday: number
   activeProducts: number
   successRate: number
+  loading: boolean
+  errorMessage: string | null
   selectedProductId: string | null
-  selectedRange: '7d' | '30d' | '90d'
-  seriesCollection: MockProductSeries[]
-  selectedSeries: MockProductSeries | null
+  selectedRange: DashboardOverviewRange
+  seriesCollection: DashboardOverviewSeries[]
+  selectedSeries: DashboardOverviewSeries | null
 }>()
 
 const emit = defineEmits<{
   selectProduct: [productId: string]
-  selectRange: [range: '7d' | '30d' | '90d']
+  selectRange: [range: DashboardOverviewRange]
 }>()
 
-const rangeOptions: Array<'7d' | '30d' | '90d'> = ['7d', '30d', '90d']
+const rangeOptions: DashboardOverviewRange[] = ['7d', '30d', '90d', '6m', '1y']
 
 const spotlightProducts = computed(() =>
   [...props.seriesCollection]
-    .sort((left, right) => right.currentValue - left.currentValue)
+    .filter((series) => series.minimumItem !== null)
+    .sort((left, right) => left.minimumItem!.price - right.minimumItem!.price)
     .slice(0, 4)
 )
+
+const selectedSeriesCurrentValue = computed(() =>
+  props.selectedSeries?.currentValue !== null && props.selectedSeries?.currentValue !== undefined
+    ? formatCurrency(props.selectedSeries.currentValue, props.selectedSeries.currency)
+    : 'No data'
+)
+
+const selectedSeriesDelta = computed(() =>
+  props.selectedSeries?.deltaPercent !== null && props.selectedSeries?.deltaPercent !== undefined
+    ? formatPercent(props.selectedSeries.deltaPercent / 100)
+    : 'No data'
+)
+
+const selectedSeriesRange = computed(() => {
+  if (
+    props.selectedSeries?.lowValue === null ||
+    props.selectedSeries?.lowValue === undefined ||
+    props.selectedSeries.highValue === null ||
+    props.selectedSeries.highValue === undefined
+  ) {
+    return 'No data'
+  }
+
+  return `${formatCurrency(props.selectedSeries.lowValue, props.selectedSeries.currency)} - ${formatCurrency(props.selectedSeries.highValue, props.selectedSeries.currency)}`
+})
 
 const overviewCards = computed(() => [
   {
@@ -51,9 +79,11 @@ const overviewCards = computed(() => [
     tone: 'success'
   },
   {
-    label: 'Mock market snapshot',
-    value: props.selectedSeries ? formatCurrency(props.selectedSeries.currentValue) : formatCurrency(0),
-    detail: props.selectedSeries ? props.selectedSeries.productTitle : 'Select a product to inspect',
+    label: 'Latest low price',
+    value: selectedSeriesCurrentValue.value,
+    detail: props.selectedSeries?.latestCapturedAt
+      ? `Captured ${formatDate(props.selectedSeries.latestCapturedAt)}`
+      : 'Select a product with saved prices',
     tone: 'accent'
   }
 ])
@@ -66,7 +96,7 @@ const overviewCards = computed(() => [
         <p class="section-kicker">Overview</p>
         <h2 class="view-title">Price intelligence at a glance</h2>
         <p class="view-copy">
-          The dashboard follows the new shell layout and uses a mocked history dataset until the chart API is ready.
+          The overview now uses saved minimum prices grouped by the requested period for each tracked product.
         </p>
       </div>
     </header>
@@ -83,7 +113,7 @@ const overviewCards = computed(() => [
       <article class="surface surface--chart">
         <div class="surface-head">
           <div>
-            <p class="section-kicker">Mocked chart</p>
+            <p class="section-kicker">Price minimums</p>
             <h3 class="surface-title">
               {{ selectedSeries?.productTitle || 'Select a tracked product' }}
             </h3>
@@ -105,28 +135,24 @@ const overviewCards = computed(() => [
 
         <div class="chart-summary">
           <div>
-            <p class="chart-summary__label">Current price</p>
-            <p class="chart-summary__value">
-              {{ selectedSeries ? formatCurrency(selectedSeries.currentValue) : formatCurrency(0) }}
-            </p>
+            <p class="chart-summary__label">Latest bucket low</p>
+            <p class="chart-summary__value">{{ selectedSeriesCurrentValue }}</p>
           </div>
           <div>
-            <p class="chart-summary__label">Day move</p>
-            <p class="chart-summary__value chart-summary__value--small">
-              {{ selectedSeries ? formatPercent(selectedSeries.deltaPercent / 100) : '0%' }}
-            </p>
+            <p class="chart-summary__label">Previous bucket move</p>
+            <p class="chart-summary__value chart-summary__value--small">{{ selectedSeriesDelta }}</p>
           </div>
           <div>
-            <p class="chart-summary__label">Range</p>
-            <p class="chart-summary__value chart-summary__value--small">
-              {{
-                selectedSeries
-                  ? `${formatCurrency(selectedSeries.lowValue)} - ${formatCurrency(selectedSeries.highValue)}`
-                  : `${formatCurrency(0)} - ${formatCurrency(0)}`
-              }}
-            </p>
+            <p class="chart-summary__label">Requested range</p>
+            <p class="chart-summary__value chart-summary__value--small">{{ selectedSeriesRange }}</p>
           </div>
         </div>
+
+        <p v-if="loading" class="surface-note">Loading minimum prices...</p>
+        <p v-else-if="errorMessage" class="surface-note surface-note--error">{{ errorMessage }}</p>
+        <p v-else-if="selectedSeries && !selectedSeries.points.length" class="surface-note">
+          No saved prices were found for this product in the selected range.
+        </p>
 
         <DashboardTrendChart :points="selectedSeries?.points ?? []" />
 
@@ -140,7 +166,13 @@ const overviewCards = computed(() => [
             @click="emit('selectProduct', series.productId)"
           >
             <span class="product-chip__title">{{ series.productTitle }}</span>
-            <span class="product-chip__value">{{ formatCurrency(series.currentValue) }}</span>
+            <span class="product-chip__value">
+              {{
+                series.currentValue !== null
+                  ? formatCurrency(series.currentValue, series.currency)
+                  : 'No data'
+              }}
+            </span>
           </button>
         </div>
       </article>
@@ -149,19 +181,33 @@ const overviewCards = computed(() => [
         <div class="surface-head">
           <div>
             <p class="section-kicker">Leaders</p>
-            <h3 class="surface-title">Highest mock prices</h3>
+            <h3 class="surface-title">Lowest prices in range</h3>
           </div>
         </div>
 
-        <div class="spotlight-list">
+        <div v-if="spotlightProducts.length" class="spotlight-list">
           <article v-for="series in spotlightProducts" :key="series.productId" class="spotlight-card">
             <div>
-              <p class="spotlight-card__title">{{ series.productTitle }}</p>
-              <p class="spotlight-card__meta">{{ formatPercent(series.deltaPercent / 100) }} vs previous point</p>
+              <p class="spotlight-card__title">{{ series.minimumItem!.productTitle }}</p>
+              <p class="spotlight-card__meta">
+                {{ series.minimumItem!.sellerName || 'unknown seller' }} ·
+                {{ formatDateTime(series.minimumItem!.capturedAt) }}
+              </p>
+              <a
+                class="table-link"
+                :href="series.minimumItem!.canonicalUrl"
+                rel="noreferrer"
+                target="_blank"
+              >
+                open source
+              </a>
             </div>
-            <div class="spotlight-card__price">{{ formatCurrency(series.currentValue) }}</div>
+            <div class="spotlight-card__price">
+              {{ formatCurrency(series.minimumItem!.price, series.minimumItem!.currency) }}
+            </div>
           </article>
         </div>
+        <p v-else class="surface-note">No overview prices are available yet.</p>
       </article>
     </section>
   </section>

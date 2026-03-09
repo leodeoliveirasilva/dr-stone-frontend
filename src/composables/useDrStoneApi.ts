@@ -3,8 +3,12 @@ import { computed, ref, shallowRef } from 'vue'
 import { apiRequest } from '@/lib/api-client'
 import type {
   CollectResult,
+  LegacyPriceHistoryMinimumEntryResponse,
+  LegacyPriceHistoryMinimumsResponse,
   LegacyProductHistoryEntryResponse,
   LegacyTrackedProductResponse,
+  PriceHistoryMinimumsResponse,
+  PriceHistoryPeriod,
   ProductHistoryEntry,
   SearchRunsResponse,
   TrackedProduct,
@@ -39,6 +43,38 @@ function normalizeHistoryEntry(entry: LegacyProductHistoryEntryResponse): Produc
     seller_name: entry.seller_name,
     search_run_id: entry.search_run_id
   }
+}
+
+function normalizePriceHistoryMinimumEntry(entry: LegacyPriceHistoryMinimumEntryResponse) {
+  return {
+    ...normalizeHistoryEntry(entry),
+    period_start: entry.period_start
+  }
+}
+
+export async function fetchPriceHistoryMinimums(params: {
+  productId: string
+  period: PriceHistoryPeriod
+  startAt: string
+  endAt: string
+}) {
+  const searchParams = new URLSearchParams({
+    product_id: params.productId,
+    period: params.period,
+    start_at: params.startAt,
+    end_at: params.endAt
+  })
+  const response = await apiRequest<LegacyPriceHistoryMinimumsResponse>(
+    `/price-history/minimums?${searchParams.toString()}`
+  )
+
+  return {
+    product_id: response.product_id,
+    period: response.period,
+    start_at: response.start_at,
+    end_at: response.end_at,
+    items: response.items.map(normalizePriceHistoryMinimumEntry)
+  } satisfies PriceHistoryMinimumsResponse
 }
 
 export function useDrStoneApi() {

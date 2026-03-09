@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, shallowRef, watch } from 'vue'
 
-import { createMockProductSeries } from '@/lib/dashboard-mocks'
+import { useDashboardOverview } from '@/composables/useDashboardOverview'
 import { formatDate } from '@/lib/formatters'
 import { useDrStoneApi } from '@/composables/useDrStoneApi'
 import type { TrackedProduct, UpsertTrackedProductPayload } from '@/types/api'
@@ -11,7 +11,7 @@ import DashboardSidebar from './DashboardSidebar.vue'
 import HistoryWorkspace from './HistoryWorkspace.vue'
 import ProductsWorkspace from './ProductsWorkspace.vue'
 import RunsWorkspace from './RunsWorkspace.vue'
-import type { DashboardTab } from './dashboard.types'
+import type { DashboardOverviewRange, DashboardTab } from './dashboard.types'
 
 const todayUtc = new Date().toISOString().slice(0, 10)
 
@@ -21,7 +21,7 @@ const editingProductId = shallowRef<string | null>(null)
 const productFormInstanceKey = shallowRef(0)
 const sidebarOpen = shallowRef(false)
 const overviewProductId = shallowRef<string | null>(null)
-const overviewRange = shallowRef<'7d' | '30d' | '90d'>('30d')
+const overviewRange = shallowRef<DashboardOverviewRange>('30d')
 
 const {
   products,
@@ -43,6 +43,12 @@ const {
   deleteProduct,
   collectNow
 } = useDrStoneApi()
+const {
+  seriesCollection: overviewSeriesCollection,
+  loading: overviewLoading,
+  errorMessage: overviewErrorMessage,
+  loadSeries: loadOverviewSeries
+} = useDashboardOverview()
 
 const editingProduct = computed<TrackedProduct | null>(() => {
   if (!editingProductId.value) {
@@ -62,38 +68,14 @@ const runSuccessRate = computed(() => {
   return runs.value.filter((run) => run.status === 'succeeded').length / runs.value.length
 })
 
-const mockSeriesCollection = computed(() => createMockProductSeries(products.value))
-
-const visibleOverviewSeries = computed(() => {
-  const rangeSize = overviewRange.value === '7d' ? 7 : overviewRange.value === '30d' ? 30 : 90
-
-  return mockSeriesCollection.value.map((series) => {
-    const points = series.points.slice(-rangeSize)
-    const currentValue = points.at(-1)?.value ?? series.currentValue
-    const previousValue = points.at(-2)?.value ?? currentValue
-    const deltaPercent = previousValue ? ((currentValue - previousValue) / previousValue) * 100 : 0
-    const values = points.map((point) => point.value)
-
-    return {
-      ...series,
-      points,
-      currentValue,
-      previousValue,
-      deltaPercent,
-      lowValue: Math.min(...values),
-      highValue: Math.max(...values)
-    }
-  })
-})
-
 const selectedOverviewSeries = computed(() => {
-  if (!visibleOverviewSeries.value.length) {
+  if (!overviewSeriesCollection.value.length) {
     return null
   }
 
   return (
-    visibleOverviewSeries.value.find((series) => series.productId === overviewProductId.value) ??
-    visibleOverviewSeries.value[0]
+    overviewSeriesCollection.value.find((series) => series.productId === overviewProductId.value) ??
+    overviewSeriesCollection.value[0]
   )
 })
 
@@ -183,6 +165,14 @@ async function handleDateRefresh() {
 }
 
 watch(
+  [products, overviewRange],
+  ([productList]) => {
+    void loadOverviewSeries(productList, overviewRange.value)
+  },
+  { immediate: true }
+)
+
+watch(
   products,
   (productList) => {
     const firstProductId = productList[0]?.id ?? null
@@ -249,12 +239,14 @@ onMounted(async () => {
         <DashboardOverview
           v-if="activeTab === 'dashboard'"
           :active-products="activeProducts"
+          :error-message="overviewErrorMessage"
+          :loading="overviewLoading"
           :products="products"
           :runs-today="runs.length"
           :selected-product-id="selectedOverviewSeries?.productId ?? null"
           :selected-range="overviewRange"
           :selected-series="selectedOverviewSeries"
-          :series-collection="visibleOverviewSeries"
+          :series-collection="overviewSeriesCollection"
           :success-rate="runSuccessRate"
           @select-product="overviewProductId = $event"
           @select-range="overviewRange = $event"

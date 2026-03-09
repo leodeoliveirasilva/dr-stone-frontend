@@ -69,6 +69,20 @@ export interface ProductHistoryEntry {
   search_run_id: string
 }
 
+export type PriceHistoryPeriod = 'day' | 'week' | 'month'
+
+export interface PriceHistoryMinimumEntry extends ProductHistoryEntry {
+  period_start: string
+}
+
+export interface PriceHistoryMinimumsResponse {
+  product_id: string
+  period: PriceHistoryPeriod
+  start_at: string
+  end_at: string
+  items: PriceHistoryMinimumEntry[]
+}
+
 export interface UpsertTrackedProductPayload {
   title: string
   search_terms: string[]
@@ -107,4 +121,16 @@ export interface LegacyProductHistoryEntryResponse {
   currency: string
   seller_name: string | null
   search_run_id: string
+}
+
+export interface LegacyPriceHistoryMinimumEntryResponse extends LegacyProductHistoryEntryResponse {
+  period_start: string
+}
+
+export interface LegacyPriceHistoryMinimumsResponse {
+  product_id: string
+  period: PriceHistoryPeriod
+  start_at: string
+  end_at: string
+  items: LegacyPriceHistoryMinimumEntryResponse[]
 }
