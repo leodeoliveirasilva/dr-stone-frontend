@@ -117,41 +117,16 @@ button {
 }
 
 .brand-mark {
-  position: relative;
   width: 52px;
   height: 52px;
   border-radius: 18px;
   border: 1px solid rgba(20, 25, 32, 0.08);
-  background: linear-gradient(145deg, rgba(20, 25, 32, 0.98), rgba(59, 74, 96, 0.84));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
-}
-
-.brand-mark::before,
-.brand-mark::after,
-.brand-mark__core {
-  content: '';
-  position: absolute;
-  inset: 50%;
-  transform: translate(-50%, -50%);
-  border-radius: 999px;
-}
-
-.brand-mark::before {
-  width: 24px;
-  height: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.76);
-}
-
-.brand-mark::after {
-  width: 2px;
-  height: 30px;
-  background: rgba(255, 255, 255, 0.76);
-}
-
-.brand-mark__core {
-  width: 30px;
-  height: 2px;
-  background: rgba(255, 255, 255, 0.76);
+  display: block;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow:
+    0 12px 24px rgba(20, 25, 32, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28);
 }
 
 .brand-kicker,

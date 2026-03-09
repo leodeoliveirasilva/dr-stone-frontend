@@ -31,9 +31,7 @@ function selectTab(tab: DashboardTab) {
   <aside class="app-sidebar" :class="{ 'is-open': mobileOpen }" aria-label="Primary">
     <div class="sidebar-brand">
       <button class="sidebar-mobile-close" type="button" @click="emit('close')">Close</button>
-      <div class="brand-mark" aria-hidden="true">
-        <span class="brand-mark__core"></span>
-      </div>
+      <img class="brand-mark" src="/favicon.png" alt="" aria-hidden="true" />
       <div>
         <p class="brand-kicker">Dr. Stone</p>
         <h1 class="brand-title">Control Center</h1>
