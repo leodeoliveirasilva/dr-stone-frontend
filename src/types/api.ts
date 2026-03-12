@@ -73,10 +73,13 @@ export type PriceHistoryPeriod = 'day' | 'week' | 'month'
 
 export interface PriceHistoryMinimumEntry extends ProductHistoryEntry {
   period_start: string
+  source_product_title?: string
 }
 
 export interface PriceHistoryMinimumsResponse {
   product_id: string
+  product_title: string
+  granularity: PriceHistoryPeriod
   period: PriceHistoryPeriod
   start_at: string
   end_at: string
@@ -129,6 +132,8 @@ export interface LegacyPriceHistoryMinimumEntryResponse extends LegacyProductHis
 
 export interface LegacyPriceHistoryMinimumsResponse {
   product_id: string
+  product_title?: string
+  granularity?: PriceHistoryPeriod
   period: PriceHistoryPeriod
   start_at: string
   end_at: string

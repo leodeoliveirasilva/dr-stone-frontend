@@ -2,6 +2,7 @@ import { ref, shallowRef } from 'vue'
 
 import { fetchPriceHistoryMinimums } from '@/composables/useDrStoneApi'
 import type {
+  DashboardOverviewGranularity,
   DashboardOverviewMinimumItem,
   DashboardOverviewPoint,
   DashboardOverviewRange,
@@ -95,9 +96,9 @@ function createSeriesFromPayload(
 
   return {
     productId: payload.product_id,
-    productTitle: latestItem?.product_title ?? product.product_title,
+    productTitle: payload.product_title || latestItem?.product_title || product.product_title,
     currency: latestItem?.currency ?? 'BRL',
-    period: payload.period,
+    period: payload.granularity,
     startAt: payload.start_at,
     endAt: payload.end_at,
     currentValue,
@@ -143,7 +144,6 @@ function buildOverviewQuery(range: DashboardOverviewRange) {
 
   if (range === '7d') {
     return {
-      period: 'day' as const,
       startAt: toUtcDateOnly(shiftUtcDays(today, -6)),
       endAt: toUtcDateOnly(today)
     }
@@ -151,7 +151,6 @@ function buildOverviewQuery(range: DashboardOverviewRange) {
 
   if (range === '30d') {
     return {
-      period: 'day' as const,
       startAt: toUtcDateOnly(shiftUtcDays(today, -29)),
       endAt: toUtcDateOnly(today)
     }
@@ -159,7 +158,6 @@ function buildOverviewQuery(range: DashboardOverviewRange) {
 
   if (range === '90d') {
     return {
-      period: 'week' as const,
       startAt: toUtcDateOnly(shiftUtcDays(today, -89)),
       endAt: toUtcDateOnly(today)
     }
@@ -167,14 +165,12 @@ function buildOverviewQuery(range: DashboardOverviewRange) {
 
   if (range === '6m') {
     return {
-      period: 'week' as const,
       startAt: toUtcDateOnly(shiftUtcMonths(today, -6)),
       endAt: toUtcDateOnly(today)
     }
   }
 
   return {
-    period: 'month' as const,
     startAt: toUtcDateOnly(shiftUtcMonths(today, -12)),
     endAt: toUtcDateOnly(today)
   }
@@ -186,7 +182,11 @@ export function useDashboardOverview() {
   const errorMessage = shallowRef<string | null>(null)
   let activeRequestId = 0
 
-  async function loadSeries(products: TrackedProduct[], range: DashboardOverviewRange) {
+  async function loadSeries(
+    products: TrackedProduct[],
+    range: DashboardOverviewRange,
+    granularity: DashboardOverviewGranularity
+  ) {
     const requestId = ++activeRequestId
 
     if (!products.length) {
@@ -204,7 +204,7 @@ export function useDashboardOverview() {
       products.map(async (product) => {
         const payload = await fetchPriceHistoryMinimums({
           productId: product.id,
-          period: query.period,
+          granularity,
           startAt: query.startAt,
           endAt: query.endAt
         })
@@ -232,7 +232,7 @@ export function useDashboardOverview() {
             : 'Failed to load overview price history.'
       }
 
-      return createEmptySeries(product, query.period, query.startAt, query.endAt)
+      return createEmptySeries(product, granularity, query.startAt, query.endAt)
     })
     errorMessage.value = nextErrorMessage
     loading.value = false

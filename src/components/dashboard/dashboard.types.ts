@@ -2,6 +2,7 @@ import type { PriceHistoryPeriod } from '@/types/api'
 
 export type DashboardTab = 'dashboard' | 'products' | 'history' | 'runs'
 export type DashboardOverviewRange = '7d' | '30d' | '90d' | '6m' | '1y'
+export type DashboardOverviewGranularity = PriceHistoryPeriod
 
 export interface DashboardOverviewPoint {
   date: string

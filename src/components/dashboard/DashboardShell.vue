@@ -11,7 +11,7 @@ import DashboardSidebar from './DashboardSidebar.vue'
 import HistoryWorkspace from './HistoryWorkspace.vue'
 import ProductsWorkspace from './ProductsWorkspace.vue'
 import RunsWorkspace from './RunsWorkspace.vue'
-import type { DashboardOverviewRange, DashboardTab } from './dashboard.types'
+import type { DashboardOverviewGranularity, DashboardOverviewRange, DashboardTab } from './dashboard.types'
 
 const todayUtc = new Date().toISOString().slice(0, 10)
 
@@ -22,6 +22,7 @@ const productFormInstanceKey = shallowRef(0)
 const sidebarOpen = shallowRef(false)
 const overviewProductId = shallowRef<string | null>(null)
 const overviewRange = shallowRef<DashboardOverviewRange>('30d')
+const overviewGranularity = shallowRef<DashboardOverviewGranularity>('day')
 
 const {
   products,
@@ -165,9 +166,9 @@ async function handleDateRefresh() {
 }
 
 watch(
-  [products, overviewRange],
+  [products, overviewRange, overviewGranularity],
   ([productList]) => {
-    void loadOverviewSeries(productList, overviewRange.value)
+    void loadOverviewSeries(productList, overviewRange.value, overviewGranularity.value)
   },
   { immediate: true }
 )
@@ -244,11 +245,13 @@ onMounted(async () => {
           :products="products"
           :runs-today="runs.length"
           :selected-product-id="selectedOverviewSeries?.productId ?? null"
+          :selected-granularity="overviewGranularity"
           :selected-range="overviewRange"
           :selected-series="selectedOverviewSeries"
           :series-collection="overviewSeriesCollection"
           :success-rate="runSuccessRate"
           @select-product="overviewProductId = $event"
+          @select-granularity="overviewGranularity = $event"
           @select-range="overviewRange = $event"
         />
 

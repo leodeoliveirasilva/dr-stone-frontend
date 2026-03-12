@@ -54,23 +54,27 @@ function normalizePriceHistoryMinimumEntry(entry: LegacyPriceHistoryMinimumEntry
 
 export async function fetchPriceHistoryMinimums(params: {
   productId: string
-  period: PriceHistoryPeriod
+  granularity: PriceHistoryPeriod
   startAt: string
   endAt: string
 }) {
   const searchParams = new URLSearchParams({
     product_id: params.productId,
-    period: params.period,
+    granularity: params.granularity,
     start_at: params.startAt,
     end_at: params.endAt
   })
   const response = await apiRequest<LegacyPriceHistoryMinimumsResponse>(
     `/price-history/minimums?${searchParams.toString()}`
   )
+  const granularity = response.granularity ?? response.period
+  const productTitle = response.product_title ?? response.items[0]?.product_title ?? ''
 
   return {
     product_id: response.product_id,
-    period: response.period,
+    product_title: productTitle,
+    granularity,
+    period: granularity,
     start_at: response.start_at,
     end_at: response.end_at,
     items: response.items.map(normalizePriceHistoryMinimumEntry)

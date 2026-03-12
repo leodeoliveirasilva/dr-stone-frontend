@@ -5,7 +5,11 @@ import { formatCompactNumber, formatCurrency, formatPercent, formatDate, formatD
 import type { TrackedProduct } from '@/types/api'
 
 import DashboardTrendChart from './DashboardTrendChart.vue'
-import type { DashboardOverviewRange, DashboardOverviewSeries } from './dashboard.types'
+import type {
+  DashboardOverviewGranularity,
+  DashboardOverviewRange,
+  DashboardOverviewSeries
+} from './dashboard.types'
 
 const props = defineProps<{
   products: TrackedProduct[]
@@ -15,6 +19,7 @@ const props = defineProps<{
   loading: boolean
   errorMessage: string | null
   selectedProductId: string | null
+  selectedGranularity: DashboardOverviewGranularity
   selectedRange: DashboardOverviewRange
   seriesCollection: DashboardOverviewSeries[]
   selectedSeries: DashboardOverviewSeries | null
@@ -22,10 +27,18 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   selectProduct: [productId: string]
+  selectGranularity: [granularity: DashboardOverviewGranularity]
   selectRange: [range: DashboardOverviewRange]
 }>()
 
 const rangeOptions: DashboardOverviewRange[] = ['7d', '30d', '90d', '6m', '1y']
+const granularityOptions: Array<{ value: DashboardOverviewGranularity; label: string }> = [
+  { value: 'day', label: 'Daily' },
+  { value: 'week', label: 'Weekly' },
+  { value: 'month', label: 'Monthly' }
+]
+
+const selectedProductValue = computed(() => props.selectedProductId ?? props.products[0]?.id ?? '')
 
 const spotlightProducts = computed(() =>
   [...props.seriesCollection]
@@ -87,6 +100,17 @@ const overviewCards = computed(() => [
     tone: 'accent'
   }
 ])
+
+function handleProductChange(event: Event) {
+  const nextProductId = (event.target as HTMLSelectElement).value
+  if (nextProductId) {
+    emit('selectProduct', nextProductId)
+  }
+}
+
+function handleGranularityChange(event: Event) {
+  emit('selectGranularity', (event.target as HTMLSelectElement).value as DashboardOverviewGranularity)
+}
 </script>
 
 <template>
@@ -96,7 +120,7 @@ const overviewCards = computed(() => [
         <p class="section-kicker">Overview</p>
         <h2 class="view-title">Price intelligence at a glance</h2>
         <p class="view-copy">
-          The overview now uses saved minimum prices grouped by the requested period for each tracked product.
+          The overview uses saved minimum prices grouped by the selected granularity for each tracked product.
         </p>
       </div>
     </header>
@@ -119,17 +143,51 @@ const overviewCards = computed(() => [
             </h3>
           </div>
 
-          <div class="range-switcher" aria-label="Time range">
-            <button
-              v-for="range in rangeOptions"
-              :key="range"
-              class="range-switcher__button"
-              :class="{ 'is-active': selectedRange === range }"
-              type="button"
-              @click="emit('selectRange', range)"
-            >
-              {{ range }}
-            </button>
+          <div class="surface-head__controls">
+            <label class="chart-filter">
+              <span class="chart-filter__label">Product</span>
+              <select
+                class="chart-filter__select"
+                :value="selectedProductValue"
+                aria-label="Select tracked product"
+                @change="handleProductChange"
+              >
+                <option v-for="product in products" :key="product.id" :value="product.id">
+                  {{ product.product_title }}
+                </option>
+              </select>
+            </label>
+
+            <label class="chart-filter">
+              <span class="chart-filter__label">Granularity</span>
+              <select
+                class="chart-filter__select"
+                :value="selectedGranularity"
+                aria-label="Select data granularity"
+                @change="handleGranularityChange"
+              >
+                <option
+                  v-for="option in granularityOptions"
+                  :key="option.value"
+                  :value="option.value"
+                >
+                  {{ option.label }}
+                </option>
+              </select>
+            </label>
+
+            <div class="range-switcher" aria-label="Time range">
+              <button
+                v-for="range in rangeOptions"
+                :key="range"
+                class="range-switcher__button"
+                :class="{ 'is-active': selectedRange === range }"
+                type="button"
+                @click="emit('selectRange', range)"
+              >
+                {{ range }}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -155,26 +213,6 @@ const overviewCards = computed(() => [
         </p>
 
         <DashboardTrendChart :points="selectedSeries?.points ?? []" />
-
-        <div class="product-chip-row">
-          <button
-            v-for="series in seriesCollection"
-            :key="series.productId"
-            class="product-chip"
-            :class="{ 'is-active': selectedProductId === series.productId }"
-            type="button"
-            @click="emit('selectProduct', series.productId)"
-          >
-            <span class="product-chip__title">{{ series.productTitle }}</span>
-            <span class="product-chip__value">
-              {{
-                series.currentValue !== null
-                  ? formatCurrency(series.currentValue, series.currency)
-                  : 'No data'
-              }}
-            </span>
-          </button>
-        </div>
       </article>
 
       <article class="surface surface--rail">
