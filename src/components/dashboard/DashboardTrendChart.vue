@@ -17,7 +17,14 @@ const chartMetrics = computed(() => {
     return {
       areaPath: '',
       linePath: '',
-      coordinates: [] as Array<{ key: string; x: number; y: number; value: number; label: string }>,
+      coordinates: [] as Array<{
+        key: string
+        x: number
+        y: number
+        value: number
+        label: string
+        canonicalUrl: string
+      }>,
       labels: [] as string[],
       gridLines: [] as Array<{ key: string; y: number; label: string }>,
       focusPoint: null as null | { x: number; y: number; value: number; label: string }
@@ -49,7 +56,8 @@ const chartMetrics = computed(() => {
     x: toX(index),
     y: toY(point.value),
     value: point.value,
-    label: point.label
+    label: point.label,
+    canonicalUrl: point.canonicalUrl
   }))
 
   const linePath = coordinates
@@ -111,9 +119,19 @@ const chartMetrics = computed(() => {
 
       <path v-if="chartMetrics.areaPath" class="trend-chart__area" :d="chartMetrics.areaPath" />
       <path v-if="chartMetrics.linePath" class="trend-chart__line" :d="chartMetrics.linePath" />
-      <g v-for="point in chartMetrics.coordinates" :key="point.key" class="trend-chart__point-group">
+      <a
+        v-for="point in chartMetrics.coordinates"
+        :key="point.key"
+        class="trend-chart__point-link"
+        :href="point.canonicalUrl"
+        rel="noreferrer"
+        target="_blank"
+        :aria-label="`Open product page for ${point.label} at ${formatCurrency(point.value)}`"
+      >
+        <title>{{ `${point.label} • ${formatCurrency(point.value)}` }}</title>
+        <circle class="trend-chart__point-hitbox" :cx="point.x" :cy="point.y" r="10" />
         <circle class="trend-chart__point" :cx="point.x" :cy="point.y" r="4" />
-      </g>
+      </a>
 
       <g v-if="chartMetrics.focusPoint" class="trend-chart__focus">
         <circle class="trend-chart__focus-ring" :cx="chartMetrics.focusPoint.x" :cy="chartMetrics.focusPoint.y" r="11" />

@@ -637,10 +637,29 @@ button {
   stroke-linejoin: round;
 }
 
+.trend-chart__point-link {
+  cursor: pointer;
+}
+
+.trend-chart__point-hitbox {
+  fill: transparent;
+}
+
 .trend-chart__point {
   fill: rgba(255, 255, 255, 0.96);
   stroke: var(--accent);
   stroke-width: 2.5;
+  transition:
+    fill 160ms ease,
+    stroke 160ms ease,
+    transform 160ms ease;
+  transform-origin: center;
+}
+
+.trend-chart__point-link:hover .trend-chart__point,
+.trend-chart__point-link:focus-visible .trend-chart__point {
+  fill: var(--accent);
+  stroke: rgba(255, 255, 255, 0.96);
 }
 
 .trend-chart__focus-ring {
@@ -651,6 +670,10 @@ button {
   fill: var(--accent);
   stroke: rgba(255, 255, 255, 0.96);
   stroke-width: 3;
+}
+
+.trend-chart__focus {
+  pointer-events: none;
 }
 
 .trend-chart__labels {
