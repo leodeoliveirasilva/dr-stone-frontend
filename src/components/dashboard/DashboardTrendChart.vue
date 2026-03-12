@@ -17,6 +17,7 @@ const chartMetrics = computed(() => {
     return {
       areaPath: '',
       linePath: '',
+      coordinates: [] as Array<{ key: string; x: number; y: number; value: number; label: string }>,
       labels: [] as string[],
       gridLines: [] as Array<{ key: string; y: number; label: string }>,
       focusPoint: null as null | { x: number; y: number; value: number; label: string }
@@ -44,6 +45,7 @@ const chartMetrics = computed(() => {
     ((maxValue - value) / valueSpan) * (chartHeight - padding.top - padding.bottom)
 
   const coordinates = props.points.map((point, index) => ({
+    key: `${point.date}-${index}`,
     x: toX(index),
     y: toY(point.value),
     value: point.value,
@@ -77,6 +79,7 @@ const chartMetrics = computed(() => {
   return {
     areaPath,
     linePath,
+    coordinates,
     labels,
     gridLines,
     focusPoint: lastPoint
@@ -108,6 +111,9 @@ const chartMetrics = computed(() => {
 
       <path v-if="chartMetrics.areaPath" class="trend-chart__area" :d="chartMetrics.areaPath" />
       <path v-if="chartMetrics.linePath" class="trend-chart__line" :d="chartMetrics.linePath" />
+      <g v-for="point in chartMetrics.coordinates" :key="point.key" class="trend-chart__point-group">
+        <circle class="trend-chart__point" :cx="point.x" :cy="point.y" r="4" />
+      </g>
 
       <g v-if="chartMetrics.focusPoint" class="trend-chart__focus">
         <circle class="trend-chart__focus-ring" :cx="chartMetrics.focusPoint.x" :cy="chartMetrics.focusPoint.y" r="11" />
