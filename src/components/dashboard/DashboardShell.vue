@@ -15,6 +15,24 @@ import type { DashboardOverviewGranularity, DashboardOverviewRange, DashboardTab
 
 const todayUtc = new Date().toISOString().slice(0, 10)
 
+function shiftUtcDays(value: Date, amount: number) {
+  const shifted = new Date(value)
+  shifted.setUTCDate(shifted.getUTCDate() + amount)
+  return shifted
+}
+
+function toUtcDateOnly(value: Date) {
+  return value.toISOString().slice(0, 10)
+}
+
+function buildDefaultHistoryRange() {
+  const today = new Date()
+  return {
+    startAt: toUtcDateOnly(shiftUtcDays(today, -29)),
+    endAt: toUtcDateOnly(today)
+  }
+}
+
 const selectedDate = shallowRef(todayUtc)
 const activeTab = shallowRef<DashboardTab>('dashboard')
 const editingProductId = shallowRef<string | null>(null)
@@ -23,11 +41,14 @@ const sidebarOpen = shallowRef(false)
 const overviewProductId = shallowRef<string | null>(null)
 const overviewRange = shallowRef<DashboardOverviewRange>('30d')
 const overviewGranularity = shallowRef<DashboardOverviewGranularity>('day')
+const historyRange = shallowRef(buildDefaultHistoryRange())
 
 const {
   products,
   runs,
   historyRows,
+  historyHasMore,
+  historyLoadingMore,
   selectedProduct,
   selectedProductId,
   productsLoading,
@@ -39,6 +60,7 @@ const {
   refreshProducts,
   refreshRuns,
   loadHistory,
+  loadMoreHistory,
   createProduct,
   updateProduct,
   deleteProduct,
@@ -153,8 +175,26 @@ async function handleDelete(productId: string) {
 }
 
 async function handleHistory(productId: string) {
-  await loadHistory(productId, 120)
+  await loadHistory(productId, {
+    startAt: historyRange.value.startAt,
+    endAt: historyRange.value.endAt
+  })
   setActiveTab('history')
+}
+
+async function handleHistoryRangeChange(range: { startAt: string | null; endAt: string | null }) {
+  historyRange.value = range
+  if (!selectedProductId.value) {
+    return
+  }
+  await loadHistory(selectedProductId.value, {
+    startAt: range.startAt,
+    endAt: range.endAt
+  })
+}
+
+async function handleHistoryLoadMore() {
+  await loadMoreHistory()
 }
 
 async function handleCollect(productId: string) {
@@ -188,7 +228,10 @@ watch(
     }
 
     if (!selectedProductId.value || !productList.some((product) => product.id === selectedProductId.value)) {
-      void loadHistory(firstProductId!, 120)
+      void loadHistory(firstProductId!, {
+        startAt: historyRange.value.startAt,
+        endAt: historyRange.value.endAt
+      })
     }
   },
   { immediate: true }
@@ -273,11 +316,17 @@ onMounted(async () => {
 
         <HistoryWorkspace
           v-else-if="activeTab === 'history'"
+          :has-more="historyHasMore"
+          :loading-more="historyLoadingMore"
+          :range-end-at="historyRange.endAt"
+          :range-start-at="historyRange.startAt"
           :loading="historyLoading"
           :products="products"
           :rows="historyRows"
           :selected-product="selectedProduct"
           :selected-product-id="selectedProductId"
+          @load-more="handleHistoryLoadMore"
+          @range-change="handleHistoryRangeChange"
           @select-product="handleHistory"
         />
 

@@ -1,12 +1,56 @@
 <script setup lang="ts">
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+
 import { formatCurrency, formatDateTime } from '@/lib/formatters'
 import type { ProductHistoryEntry, TrackedProduct } from '@/types/api'
 
-defineProps<{
+const props = defineProps<{
   product: TrackedProduct | null
   rows: ProductHistoryEntry[]
   loading: boolean
+  loadingMore: boolean
+  hasMore: boolean
 }>()
+
+const emit = defineEmits<{
+  loadMore: []
+}>()
+
+const sentinelRef = ref<HTMLDivElement | null>(null)
+let observer: IntersectionObserver | null = null
+
+function observeSentinel() {
+  if (!observer || !sentinelRef.value) {
+    return
+  }
+  observer.disconnect()
+  observer.observe(sentinelRef.value)
+}
+
+onMounted(() => {
+  observer = new IntersectionObserver(
+    (entries) => {
+      if (!entries.some((entry) => entry.isIntersecting)) {
+        return
+      }
+      if (props.loading || props.loadingMore || !props.hasMore) {
+        return
+      }
+      emit('loadMore')
+    },
+    { rootMargin: '0px 0px 240px 0px' }
+  )
+  observeSentinel()
+})
+
+onBeforeUnmount(() => {
+  observer?.disconnect()
+  observer = null
+})
+
+watch(sentinelRef, () => {
+  observeSentinel()
+})
 </script>
 
 <template>
@@ -49,6 +93,12 @@ defineProps<{
           </tr>
         </tbody>
       </table>
+    </div>
+
+    <div v-if="rows.length" ref="sentinelRef" class="history-sentinel">
+      <span v-if="loadingMore" class="surface-note">Loading more history...</span>
+      <span v-else-if="hasMore" class="surface-note">Scroll to load more.</span>
+      <span v-else class="surface-note">You reached the end of the selected history window.</span>
     </div>
   </div>
 </template>

@@ -69,6 +69,18 @@ export interface ProductHistoryEntry {
   search_run_id: string
 }
 
+export interface ProductHistoryResponse {
+  product_id: string
+  product_title: string
+  limit: number
+  offset: number
+  has_more: boolean
+  next_offset: number | null
+  start_at: string | null
+  end_at: string | null
+  items: ProductHistoryEntry[]
+}
+
 export type PriceHistoryPeriod = 'day' | 'week' | 'month'
 
 export interface PriceHistoryMinimumEntry extends ProductHistoryEntry {
@@ -124,6 +136,18 @@ export interface LegacyProductHistoryEntryResponse {
   currency: string
   seller_name: string | null
   search_run_id: string
+}
+
+export interface LegacyProductHistoryResponse {
+  product_id: string
+  product_title?: string
+  limit: number
+  offset: number
+  has_more: boolean
+  next_offset: number | null
+  start_at: string | null
+  end_at: string | null
+  items: LegacyProductHistoryEntryResponse[]
 }
 
 export interface LegacyPriceHistoryMinimumEntryResponse extends LegacyProductHistoryEntryResponse {

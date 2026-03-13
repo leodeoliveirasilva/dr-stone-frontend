@@ -1048,8 +1048,27 @@ input:focus {
   text-underline-offset: 3px;
 }
 
+.panel-header-row--history-filters {
+  margin-bottom: 18px;
+  align-items: end;
+}
+
+.history-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
 .run-filter-input {
   max-width: 220px;
+}
+
+.history-sentinel {
+  display: flex;
+  justify-content: center;
+  padding-top: 14px;
 }
 
 @media (max-width: 1240px) {
@@ -1144,6 +1163,16 @@ input:focus {
   .chart-summary,
   .product-chip-row {
     grid-template-columns: 1fr;
+  }
+
+  .history-filter-bar {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .run-filter-input {
+    max-width: none;
+    width: 100%;
   }
 
   .table,

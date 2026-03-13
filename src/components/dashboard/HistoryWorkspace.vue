@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import { formatDate } from '@/lib/formatters'
 import type { ProductHistoryEntry, TrackedProduct } from '@/types/api'
@@ -10,15 +10,44 @@ const props = defineProps<{
   products: TrackedProduct[]
   selectedProductId: string | null
   selectedProduct: TrackedProduct | null
+  rangeStartAt: string | null
+  rangeEndAt: string | null
   rows: ProductHistoryEntry[]
+  hasMore: boolean
   loading: boolean
+  loadingMore: boolean
 }>()
 
 const emit = defineEmits<{
+  loadMore: []
+  rangeChange: [range: { startAt: string | null; endAt: string | null }]
   selectProduct: [productId: string]
 }>()
 
 const latestCapturedAt = computed(() => props.rows[0]?.captured_at ?? null)
+const startDate = ref(props.rangeStartAt ?? '')
+const endDate = ref(props.rangeEndAt ?? '')
+
+watch(
+  () => [props.rangeStartAt, props.rangeEndAt],
+  ([nextStartAt, nextEndAt]) => {
+    startDate.value = nextStartAt ?? ''
+    endDate.value = nextEndAt ?? ''
+  }
+)
+
+function applyRange() {
+  emit('rangeChange', {
+    startAt: startDate.value || null,
+    endAt: endDate.value || null
+  })
+}
+
+function clearRange() {
+  startDate.value = ''
+  endDate.value = ''
+  emit('rangeChange', { startAt: null, endAt: null })
+}
 </script>
 
 <template>
@@ -62,7 +91,28 @@ const latestCapturedAt = computed(() => props.rows[0]?.captured_at ?? null)
       </aside>
 
       <article class="surface">
-        <HistoryPanel :loading="loading" :product="selectedProduct" :rows="rows" />
+        <div class="panel-header-row panel-header-row--history-filters">
+          <div>
+            <h2 class="panel-title">Filters</h2>
+            <p class="panel-copy">Default view starts with the last 30 days. Clear the range to load all history.</p>
+          </div>
+
+          <div class="history-filter-bar">
+            <input v-model="startDate" class="run-filter-input" type="date" aria-label="History start date" />
+            <input v-model="endDate" class="run-filter-input" type="date" aria-label="History end date" />
+            <button class="btn btn-solid btn-mini" type="button" @click="applyRange">Apply</button>
+            <button class="btn btn-ghost btn-mini" type="button" @click="clearRange">All time</button>
+          </div>
+        </div>
+
+        <HistoryPanel
+          :has-more="hasMore"
+          :loading="loading"
+          :loading-more="loadingMore"
+          :product="selectedProduct"
+          :rows="rows"
+          @load-more="emit('loadMore')"
+        />
       </article>
     </section>
   </section>

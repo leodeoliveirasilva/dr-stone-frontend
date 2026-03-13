@@ -6,14 +6,18 @@ import type {
   LegacyPriceHistoryMinimumEntryResponse,
   LegacyPriceHistoryMinimumsResponse,
   LegacyProductHistoryEntryResponse,
+  LegacyProductHistoryResponse,
   LegacyTrackedProductResponse,
   PriceHistoryMinimumsResponse,
   PriceHistoryPeriod,
   ProductHistoryEntry,
+  ProductHistoryResponse,
   SearchRunsResponse,
   TrackedProduct,
   UpsertTrackedProductPayload
 } from '@/types/api'
+
+const DEFAULT_HISTORY_PAGE_SIZE = 120
 
 function normalizeTrackedProduct(product: LegacyTrackedProductResponse): TrackedProduct {
   const searchTerms = Array.isArray(product.search_terms)
@@ -42,6 +46,38 @@ function normalizeHistoryEntry(entry: LegacyProductHistoryEntryResponse): Produc
     currency: entry.currency,
     seller_name: entry.seller_name,
     search_run_id: entry.search_run_id
+  }
+}
+
+function normalizeHistoryResponse(
+  response: LegacyProductHistoryResponse | LegacyProductHistoryEntryResponse[],
+  trackedProductId: string,
+  trackedProductTitle = ''
+): ProductHistoryResponse {
+  if (Array.isArray(response)) {
+    return {
+      product_id: trackedProductId,
+      product_title: trackedProductTitle,
+      limit: response.length,
+      offset: 0,
+      has_more: false,
+      next_offset: null,
+      start_at: null,
+      end_at: null,
+      items: response.map(normalizeHistoryEntry)
+    }
+  }
+
+  return {
+    product_id: response.product_id,
+    product_title: response.product_title ?? trackedProductTitle,
+    limit: response.limit,
+    offset: response.offset,
+    has_more: response.has_more,
+    next_offset: response.next_offset,
+    start_at: response.start_at,
+    end_at: response.end_at,
+    items: response.items.map(normalizeHistoryEntry)
   }
 }
 
@@ -86,6 +122,11 @@ export function useDrStoneApi() {
   const runs = ref<SearchRunsResponse['runs']>([])
   const selectedProductId = shallowRef<string | null>(null)
   const historyRows = ref<ProductHistoryEntry[]>([])
+  const historyHasMore = shallowRef(false)
+  const historyLoadingMore = shallowRef(false)
+  const historyStartAt = shallowRef<string | null>(null)
+  const historyEndAt = shallowRef<string | null>(null)
+  const historyNextOffset = shallowRef<number | null>(null)
 
   const productsLoading = shallowRef(false)
   const runsLoading = shallowRef(false)
@@ -139,15 +180,38 @@ export function useDrStoneApi() {
     }
   }
 
-  async function loadHistory(trackedProductId: string, limit = 120) {
+  async function loadHistory(
+    trackedProductId: string,
+    options: {
+      limit?: number
+      startAt?: string | null
+      endAt?: string | null
+    } = {}
+  ) {
+    const limit = options.limit ?? DEFAULT_HISTORY_PAGE_SIZE
     historyLoading.value = true
     selectedProductId.value = trackedProductId
+    historyStartAt.value = options.startAt ?? null
+    historyEndAt.value = options.endAt ?? null
+    historyHasMore.value = false
+    historyNextOffset.value = null
+    historyRows.value = []
     setStatus('Loading product history...')
     try {
-      const response = await apiRequest<LegacyProductHistoryEntryResponse[]>(
-        `/tracked-products/${trackedProductId}/history?limit=${limit}`
+      const searchParams = new URLSearchParams({ limit: String(limit), offset: '0' })
+      if (historyStartAt.value) {
+        searchParams.set('start_at', historyStartAt.value)
+      }
+      if (historyEndAt.value) {
+        searchParams.set('end_at', historyEndAt.value)
+      }
+      const response = await apiRequest<LegacyProductHistoryResponse | LegacyProductHistoryEntryResponse[]>(
+        `/tracked-products/${trackedProductId}/history?${searchParams.toString()}`
       )
-      historyRows.value = response.map(normalizeHistoryEntry)
+      const normalized = normalizeHistoryResponse(response, trackedProductId, selectedProduct.value?.product_title ?? '')
+      historyRows.value = normalized.items
+      historyHasMore.value = normalized.has_more
+      historyNextOffset.value = normalized.next_offset
       setStatus(`Loaded ${historyRows.value.length} history row(s).`)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to load history.'
@@ -155,6 +219,45 @@ export function useDrStoneApi() {
       throw error
     } finally {
       historyLoading.value = false
+    }
+  }
+
+  async function loadMoreHistory(limit = DEFAULT_HISTORY_PAGE_SIZE) {
+    if (!selectedProductId.value || !historyHasMore.value || historyNextOffset.value === null) {
+      return
+    }
+
+    historyLoadingMore.value = true
+    setStatus('Loading more history...')
+    try {
+      const searchParams = new URLSearchParams({
+        limit: String(limit),
+        offset: String(historyNextOffset.value)
+      })
+      if (historyStartAt.value) {
+        searchParams.set('start_at', historyStartAt.value)
+      }
+      if (historyEndAt.value) {
+        searchParams.set('end_at', historyEndAt.value)
+      }
+      const response = await apiRequest<LegacyProductHistoryResponse | LegacyProductHistoryEntryResponse[]>(
+        `/tracked-products/${selectedProductId.value}/history?${searchParams.toString()}`
+      )
+      const normalized = normalizeHistoryResponse(
+        response,
+        selectedProductId.value,
+        selectedProduct.value?.product_title ?? ''
+      )
+      historyRows.value = [...historyRows.value, ...normalized.items]
+      historyHasMore.value = normalized.has_more
+      historyNextOffset.value = normalized.next_offset
+      setStatus(`Loaded ${historyRows.value.length} history row(s).`)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to load more history.'
+      setStatus(message, true)
+      throw error
+    } finally {
+      historyLoadingMore.value = false
     }
   }
 
@@ -192,6 +295,8 @@ export function useDrStoneApi() {
       if (selectedProductId.value === productId) {
         selectedProductId.value = null
         historyRows.value = []
+        historyHasMore.value = false
+        historyNextOffset.value = null
       }
       await refreshProducts(true)
     } finally {
@@ -220,6 +325,10 @@ export function useDrStoneApi() {
     products,
     runs,
     historyRows,
+    historyHasMore,
+    historyLoadingMore,
+    historyStartAt,
+    historyEndAt,
     selectedProduct,
     selectedProductId,
     productsLoading,
@@ -231,6 +340,7 @@ export function useDrStoneApi() {
     refreshProducts,
     refreshRuns,
     loadHistory,
+    loadMoreHistory,
     createProduct,
     updateProduct,
     deleteProduct,
