@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, shallowRef, watch } from 'vue'
 
+import { useDashboardNavigation } from '@/composables/useDashboardNavigation'
 import { useDashboardOverview } from '@/composables/useDashboardOverview'
 import { formatDate } from '@/lib/formatters'
 import { useDrStoneApi } from '@/composables/useDrStoneApi'
@@ -14,6 +15,7 @@ import RunsWorkspace from './RunsWorkspace.vue'
 import type { DashboardOverviewGranularity, DashboardOverviewRange, DashboardTab } from './dashboard.types'
 
 const todayUtc = new Date().toISOString().slice(0, 10)
+const { activeTab, navigateToTab } = useDashboardNavigation()
 
 function shiftUtcDays(value: Date, amount: number) {
   const shifted = new Date(value)
@@ -34,7 +36,6 @@ function buildDefaultHistoryRange() {
 }
 
 const selectedDate = shallowRef(todayUtc)
-const activeTab = shallowRef<DashboardTab>('dashboard')
 const editingProductId = shallowRef<string | null>(null)
 const productFormInstanceKey = shallowRef(0)
 const sidebarOpen = shallowRef(false)
@@ -136,7 +137,7 @@ async function loadInitialData() {
 }
 
 function setActiveTab(tab: DashboardTab) {
-  activeTab.value = tab
+  navigateToTab(tab)
   sidebarOpen.value = false
 }
 

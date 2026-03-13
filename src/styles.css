@@ -173,6 +173,7 @@ button {
   border-radius: 18px;
   background: transparent;
   color: var(--ink);
+  text-decoration: none;
   text-align: left;
   cursor: pointer;
   transition:

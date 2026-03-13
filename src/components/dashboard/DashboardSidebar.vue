@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { dashboardTabPaths } from './dashboard.routes'
 import type { DashboardTab } from './dashboard.types'
 
 const props = defineProps<{
@@ -15,11 +16,11 @@ const emit = defineEmits<{
   close: []
 }>()
 
-const navItems: Array<{ id: DashboardTab; label: string; badge?: () => string | null }> = [
-  { id: 'dashboard', label: 'Dashboard' },
-  { id: 'products', label: 'Products', badge: () => String(props.productCount) },
-  { id: 'history', label: 'Price History' },
-  { id: 'runs', label: 'Runs', badge: () => String(props.runCount) }
+const navItems: Array<{ id: DashboardTab; href: string; label: string; badge?: () => string | null }> = [
+  { id: 'dashboard', href: dashboardTabPaths.dashboard, label: 'Dashboard' },
+  { id: 'products', href: dashboardTabPaths.products, label: 'Products', badge: () => String(props.productCount) },
+  { id: 'history', href: dashboardTabPaths.history, label: 'Price History' },
+  { id: 'runs', href: dashboardTabPaths.runs, label: 'Runs', badge: () => String(props.runCount) }
 ]
 
 function selectTab(tab: DashboardTab) {
@@ -39,18 +40,18 @@ function selectTab(tab: DashboardTab) {
     </div>
 
     <nav class="sidebar-nav">
-      <button
+      <a
         v-for="item in navItems"
         :key="item.id"
         class="sidebar-link"
+        :href="item.href"
         :class="{ 'is-active': activeTab === item.id }"
-        type="button"
-        @click="selectTab(item.id)"
+        @click.prevent="selectTab(item.id)"
       >
         <span class="sidebar-link__icon" :data-tab="item.id" aria-hidden="true"></span>
         <span class="sidebar-link__label">{{ item.label }}</span>
         <span v-if="item.badge?.()" class="sidebar-link__badge">{{ item.badge?.() }}</span>
-      </button>
+      </a>
     </nav>
 
     <div class="sidebar-status" :class="{ 'is-error': statusError }">
