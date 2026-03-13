@@ -17,7 +17,7 @@ import type {
   UpsertTrackedProductPayload
 } from '@/types/api'
 
-const DEFAULT_HISTORY_PAGE_SIZE = 120
+const DEFAULT_HISTORY_PAGE_SIZE = 10
 
 function normalizeTrackedProduct(product: LegacyTrackedProductResponse): TrackedProduct {
   const searchTerms = Array.isArray(product.search_terms)

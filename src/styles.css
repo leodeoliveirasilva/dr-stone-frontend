@@ -503,10 +503,6 @@ button {
   grid-template-columns: minmax(320px, 0.9fr) minmax(0, 1.3fr);
 }
 
-.content-grid--history {
-  grid-template-columns: minmax(260px, 0.7fr) minmax(0, 1.5fr);
-}
-
 .surface,
 .panel-block {
   display: grid;
@@ -519,8 +515,7 @@ button {
   gap: 18px;
 }
 
-.surface--rail,
-.surface--selector {
+.surface--rail {
   align-content: start;
 }
 
@@ -565,7 +560,8 @@ button {
   text-transform: uppercase;
 }
 
-.chart-filter__select {
+.chart-filter__select,
+.chart-filter__input {
   min-height: 44px;
   padding: 0 40px 0 14px;
   border: 1px solid var(--line);
@@ -686,8 +682,7 @@ button {
 }
 
 .product-chip-row,
-.spotlight-list,
-.selector-list {
+.spotlight-list {
   display: grid;
   gap: 12px;
 }
@@ -697,7 +692,6 @@ button {
 }
 
 .product-chip,
-.selector-card,
 .spotlight-card {
   display: flex;
   justify-content: space-between;
@@ -710,8 +704,7 @@ button {
   color: var(--ink);
 }
 
-.product-chip,
-.selector-card {
+.product-chip {
   cursor: pointer;
   transition:
     transform 160ms ease,
@@ -720,17 +713,14 @@ button {
 }
 
 .product-chip:hover,
-.product-chip.is-active,
-.selector-card:hover,
-.selector-card.is-active {
+.product-chip.is-active {
   border-color: rgba(83, 141, 255, 0.18);
   box-shadow: 0 18px 32px rgba(55, 74, 101, 0.08);
   transform: translateY(-1px);
 }
 
 .product-chip__title,
-.spotlight-card__title,
-.selector-card__title {
+.spotlight-card__title {
   display: block;
   margin: 0;
   font-size: 0.95rem;
@@ -745,8 +735,7 @@ button {
   font-weight: 700;
 }
 
-.spotlight-card__meta,
-.selector-card__meta {
+.spotlight-card__meta {
   margin: 4px 0 0;
   color: var(--muted);
   font-size: 0.82rem;
@@ -1061,7 +1050,15 @@ input:focus {
   justify-content: flex-end;
 }
 
-.run-filter-input {
+.history-filter-actions {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  align-self: stretch;
+}
+
+.run-filter-input,
+.chart-filter__input {
   max-width: 220px;
 }
 
@@ -1078,8 +1075,7 @@ input:focus {
   }
 
   .content-grid--overview,
-  .content-grid--products,
-  .content-grid--history {
+  .content-grid--products {
     grid-template-columns: 1fr;
   }
 }
@@ -1170,7 +1166,12 @@ input:focus {
     justify-content: stretch;
   }
 
-  .run-filter-input {
+  .history-filter-actions {
+    width: 100%;
+  }
+
+  .run-filter-input,
+  .chart-filter__input {
     max-width: none;
     width: 100%;
   }
@@ -1221,12 +1222,14 @@ input:focus {
   }
 
   .multi-input-field,
-  .run-filter-input {
+  .run-filter-input,
+  .chart-filter__input {
     max-width: 100%;
   }
 
   .multi-input-action,
-  .btn-pill {
+  .btn-pill,
+  .history-filter-actions .btn {
     width: 100%;
   }
 }

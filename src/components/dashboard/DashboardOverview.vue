@@ -4,6 +4,7 @@ import { computed } from 'vue'
 import { formatCompactNumber, formatCurrency, formatPercent, formatDate, formatDateTime } from '@/lib/formatters'
 import type { TrackedProduct } from '@/types/api'
 
+import DashboardProductSelect from './DashboardProductSelect.vue'
 import DashboardTrendChart from './DashboardTrendChart.vue'
 import type {
   DashboardOverviewGranularity,
@@ -37,8 +38,6 @@ const granularityOptions: Array<{ value: DashboardOverviewGranularity; label: st
   { value: 'week', label: 'Weekly' },
   { value: 'month', label: 'Monthly' }
 ]
-
-const selectedProductValue = computed(() => props.selectedProductId ?? props.products[0]?.id ?? '')
 
 const spotlightProducts = computed(() =>
   [...props.seriesCollection]
@@ -101,13 +100,6 @@ const overviewCards = computed(() => [
   }
 ])
 
-function handleProductChange(event: Event) {
-  const nextProductId = (event.target as HTMLSelectElement).value
-  if (nextProductId) {
-    emit('selectProduct', nextProductId)
-  }
-}
-
 function handleGranularityChange(event: Event) {
   emit('selectGranularity', (event.target as HTMLSelectElement).value as DashboardOverviewGranularity)
 }
@@ -144,19 +136,11 @@ function handleGranularityChange(event: Event) {
           </div>
 
           <div class="surface-head__controls">
-            <label class="chart-filter">
-              <span class="chart-filter__label">Product</span>
-              <select
-                class="chart-filter__select"
-                :value="selectedProductValue"
-                aria-label="Select tracked product"
-                @change="handleProductChange"
-              >
-                <option v-for="product in products" :key="product.id" :value="product.id">
-                  {{ product.product_title }}
-                </option>
-              </select>
-            </label>
+            <DashboardProductSelect
+              :products="products"
+              :selected-product-id="selectedProductId"
+              @select-product="emit('selectProduct', $event)"
+            />
 
             <label class="chart-filter">
               <span class="chart-filter__label">Granularity</span>
