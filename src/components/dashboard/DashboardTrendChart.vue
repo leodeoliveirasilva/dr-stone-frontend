@@ -2,10 +2,10 @@
 import { computed } from 'vue'
 
 import { formatCurrency } from '@/lib/formatters'
-import type { DashboardOverviewPoint } from './dashboard.types'
+import type { DashboardOverviewSourceSeries } from './dashboard.types'
 
 const props = defineProps<{
-  points: DashboardOverviewPoint[]
+  series: DashboardOverviewSourceSeries[]
 }>()
 
 const chartWidth = 760
@@ -13,37 +13,50 @@ const chartHeight = 280
 const padding = { top: 22, right: 18, bottom: 36, left: 18 }
 
 const chartMetrics = computed(() => {
-  if (!props.points.length) {
+  const visibleSeries = props.series.filter((series) => series.points.length)
+
+  if (!visibleSeries.length) {
     return {
-      areaPath: '',
-      linePath: '',
-      coordinates: [] as Array<{
-        key: string
-        x: number
-        y: number
-        value: number
-        label: string
-        canonicalUrl: string
-      }>,
       labels: [] as string[],
       gridLines: [] as Array<{ key: string; y: number; label: string }>,
-      focusPoint: null as null | { x: number; y: number; value: number; label: string }
+      series: [] as Array<{
+        sourceName: string
+        sourceLabel: string
+        colorToken: string
+        areaPath: string
+        linePath: string
+        coordinates: Array<{
+          key: string
+          x: number
+          y: number
+          value: number
+          label: string
+          canonicalUrl: string
+          sourceLabel: string
+        }>
+        focusPoint: null | { x: number; y: number }
+      }>
     }
   }
 
-  const values = props.points.map((point) => point.value)
+  const allPoints = visibleSeries.flatMap((series) => series.points)
+  const values = allPoints.map((point) => point.value)
   const minValue = Math.min(...values)
   const maxValue = Math.max(...values)
   const valueSpan = Math.max(1, maxValue - minValue)
+  const timestamps = allPoints.map((point) => new Date(point.date).getTime())
+  const minTimestamp = Math.min(...timestamps)
+  const maxTimestamp = Math.max(...timestamps)
+  const timeSpan = Math.max(1, maxTimestamp - minTimestamp)
 
-  const toX = (index: number) => {
-    if (props.points.length === 1) {
+  const toX = (value: string) => {
+    if (minTimestamp === maxTimestamp) {
       return chartWidth / 2
     }
 
     return (
       padding.left +
-      (index / (props.points.length - 1)) * (chartWidth - padding.left - padding.right)
+      ((new Date(value).getTime() - minTimestamp) / timeSpan) * (chartWidth - padding.left - padding.right)
     )
   }
 
@@ -51,23 +64,37 @@ const chartMetrics = computed(() => {
     padding.top +
     ((maxValue - value) / valueSpan) * (chartHeight - padding.top - padding.bottom)
 
-  const coordinates = props.points.map((point, index) => ({
-    key: `${point.date}-${index}`,
-    x: toX(index),
-    y: toY(point.value),
-    value: point.value,
-    label: point.label,
-    canonicalUrl: point.canonicalUrl
-  }))
+  const chartSeries = visibleSeries.map((series) => {
+    const coordinates = series.points.map((point, index) => ({
+      key: `${series.sourceName}-${point.date}-${index}`,
+      x: toX(point.date),
+      y: toY(point.value),
+      value: point.value,
+      label: point.label,
+      canonicalUrl: point.canonicalUrl,
+      sourceLabel: point.sourceLabel
+    }))
 
-  const linePath = coordinates
-    .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
-    .join(' ')
+    const linePath = coordinates
+      .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
+      .join(' ')
 
-  const firstPoint = coordinates[0]
-  const lastPoint = coordinates.at(-1) ?? firstPoint
+    const firstPoint = coordinates[0]
+    const lastPoint = coordinates.at(-1) ?? firstPoint
 
-  const areaPath = `${linePath} L ${lastPoint.x.toFixed(2)} ${(chartHeight - padding.bottom).toFixed(2)} L ${firstPoint.x.toFixed(2)} ${(chartHeight - padding.bottom).toFixed(2)} Z`
+    return {
+      sourceName: series.sourceName,
+      sourceLabel: series.sourceLabel,
+      colorToken: series.colorToken,
+      areaPath:
+        visibleSeries.length === 1
+          ? `${linePath} L ${lastPoint.x.toFixed(2)} ${(chartHeight - padding.bottom).toFixed(2)} L ${firstPoint.x.toFixed(2)} ${(chartHeight - padding.bottom).toFixed(2)} Z`
+          : '',
+      linePath,
+      coordinates,
+      focusPoint: visibleSeries.length === 1 ? { x: lastPoint.x, y: lastPoint.y } : null
+    }
+  })
 
   const gridLines = Array.from({ length: 4 }, (_, index) => {
     const ratio = index / 3
@@ -81,22 +108,39 @@ const chartMetrics = computed(() => {
     }
   })
 
-  const labelIndexes = [0, Math.floor((props.points.length - 1) / 2), props.points.length - 1]
-  const labels = labelIndexes.map((index) => props.points[index]?.label ?? '')
+  const uniqueLabelEntries = [...allPoints]
+    .sort((left, right) => new Date(left.date).getTime() - new Date(right.date).getTime())
+    .filter((point, index, collection) => {
+      return index === 0 || point.date !== collection[index - 1]?.date
+    })
+  const labelIndexes = [
+    0,
+    Math.floor((uniqueLabelEntries.length - 1) / 2),
+    uniqueLabelEntries.length - 1
+  ]
+  const labels = labelIndexes.map((index) => uniqueLabelEntries[index]?.label ?? '')
 
   return {
-    areaPath,
-    linePath,
-    coordinates,
     labels,
     gridLines,
-    focusPoint: lastPoint
+    series: chartSeries
   }
 })
 </script>
 
 <template>
   <div class="trend-chart">
+    <div v-if="chartMetrics.series.length > 1" class="trend-chart__legend">
+      <span
+        v-for="source in chartMetrics.series"
+        :key="source.sourceName"
+        class="trend-chart__legend-item"
+      >
+        <span class="trend-chart__legend-swatch" :style="{ backgroundColor: source.colorToken }"></span>
+        <span>{{ source.sourceLabel }}</span>
+      </span>
+    </div>
+
     <svg
       class="trend-chart__svg"
       :viewBox="`0 0 ${chartWidth} ${chartHeight}`"
@@ -117,25 +161,49 @@ const chartMetrics = computed(() => {
         </text>
       </g>
 
-      <path v-if="chartMetrics.areaPath" class="trend-chart__area" :d="chartMetrics.areaPath" />
-      <path v-if="chartMetrics.linePath" class="trend-chart__line" :d="chartMetrics.linePath" />
-      <a
-        v-for="point in chartMetrics.coordinates"
-        :key="point.key"
-        class="trend-chart__point-link"
-        :href="point.canonicalUrl"
-        rel="noreferrer"
-        target="_blank"
-        :aria-label="`Open product page for ${point.label} at ${formatCurrency(point.value)}`"
+      <g
+        v-for="source in chartMetrics.series"
+        :key="source.sourceName"
+        :style="{ '--trend-color': source.colorToken }"
       >
-        <title>{{ `${point.label} • ${formatCurrency(point.value)}` }}</title>
-        <circle class="trend-chart__point-hitbox" :cx="point.x" :cy="point.y" r="10" />
-        <circle class="trend-chart__point" :cx="point.x" :cy="point.y" r="4" />
-      </a>
+        <path
+          v-if="source.areaPath"
+          class="trend-chart__area"
+          :d="source.areaPath"
+        />
+        <path
+          v-if="source.linePath"
+          class="trend-chart__line"
+          :d="source.linePath"
+        />
+        <a
+          v-for="point in source.coordinates"
+          :key="point.key"
+          class="trend-chart__point-link"
+          :href="point.canonicalUrl"
+          rel="noreferrer"
+          target="_blank"
+          :aria-label="`Open ${point.sourceLabel} product page for ${point.label} at ${formatCurrency(point.value)}`"
+        >
+          <title>{{ `${point.sourceLabel} • ${point.label} • ${formatCurrency(point.value)}` }}</title>
+          <circle class="trend-chart__point-hitbox" :cx="point.x" :cy="point.y" r="10" />
+          <circle
+            class="trend-chart__point"
+            :cx="point.x"
+            :cy="point.y"
+            r="4"
+          />
+        </a>
 
-      <g v-if="chartMetrics.focusPoint" class="trend-chart__focus">
-        <circle class="trend-chart__focus-ring" :cx="chartMetrics.focusPoint.x" :cy="chartMetrics.focusPoint.y" r="11" />
-        <circle class="trend-chart__focus-dot" :cx="chartMetrics.focusPoint.x" :cy="chartMetrics.focusPoint.y" r="4.5" />
+        <g v-if="source.focusPoint" class="trend-chart__focus">
+          <circle class="trend-chart__focus-ring" :cx="source.focusPoint.x" :cy="source.focusPoint.y" r="11" />
+          <circle
+            class="trend-chart__focus-dot"
+            :cx="source.focusPoint.x"
+            :cy="source.focusPoint.y"
+            r="4.5"
+          />
+        </g>
       </g>
     </svg>
 

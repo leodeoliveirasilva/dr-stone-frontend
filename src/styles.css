@@ -539,6 +539,21 @@ button {
   align-items: flex-start;
 }
 
+.surface-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.surface-note--error {
+  color: var(--danger);
+}
+
+.surface-note--inline {
+  margin-top: 8px;
+}
+
 .surface-head__controls {
   display: flex;
   flex-wrap: wrap;
@@ -604,6 +619,28 @@ button {
   gap: 12px;
 }
 
+.trend-chart__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+}
+
+.trend-chart__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.trend-chart__legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.72);
+}
+
 .trend-chart__svg {
   width: 100%;
   height: auto;
@@ -628,7 +665,7 @@ button {
 
 .trend-chart__line {
   fill: none;
-  stroke: var(--accent);
+  stroke: var(--trend-color, var(--accent));
   stroke-width: 4;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -644,7 +681,7 @@ button {
 
 .trend-chart__point {
   fill: rgba(255, 255, 255, 0.96);
-  stroke: var(--accent);
+  stroke: var(--trend-color, var(--accent));
   stroke-width: 2.5;
   transition:
     fill 160ms ease,
@@ -655,7 +692,7 @@ button {
 
 .trend-chart__point-link:hover .trend-chart__point,
 .trend-chart__point-link:focus-visible .trend-chart__point {
-  fill: var(--accent);
+  fill: var(--trend-color, var(--accent));
   stroke: rgba(255, 255, 255, 0.96);
 }
 
@@ -664,7 +701,7 @@ button {
 }
 
 .trend-chart__focus-dot {
-  fill: var(--accent);
+  fill: var(--trend-color, var(--accent));
   stroke: rgba(255, 255, 255, 0.96);
   stroke-width: 3;
 }

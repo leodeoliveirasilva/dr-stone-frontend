@@ -2,14 +2,18 @@
 import { computed, ref, watch } from 'vue'
 
 import { formatDate } from '@/lib/formatters'
-import type { ProductHistoryEntry, TrackedProduct } from '@/types/api'
+import type { ProductHistoryEntry, SourceOption, TrackedProduct } from '@/types/api'
 
 import DashboardProductSelect from './DashboardProductSelect.vue'
 import HistoryPanel from './HistoryPanel.vue'
+import type { DashboardOverviewSourceFilterValue } from './dashboard.types'
 
 const props = defineProps<{
   products: TrackedProduct[]
+  sourceOptions: SourceOption[]
+  sourcesLoading: boolean
   selectedProductId: string | null
+  selectedSource: DashboardOverviewSourceFilterValue
   selectedProduct: TrackedProduct | null
   rangeStartAt: string | null
   rangeEndAt: string | null
@@ -23,6 +27,7 @@ const emit = defineEmits<{
   loadMore: []
   rangeChange: [range: { startAt: string | null; endAt: string | null }]
   selectProduct: [productId: string]
+  selectSource: [source: DashboardOverviewSourceFilterValue]
 }>()
 
 const latestCapturedAt = computed(() => props.rows[0]?.captured_at ?? null)
@@ -49,6 +54,10 @@ function clearRange() {
   endDate.value = ''
   emit('rangeChange', { startAt: null, endAt: null })
 }
+
+function handleSourceChange(event: Event) {
+  emit('selectSource', (event.target as HTMLSelectElement).value as DashboardOverviewSourceFilterValue)
+}
 </script>
 
 <template>
@@ -58,7 +67,7 @@ function clearRange() {
         <p class="section-kicker">History</p>
         <h2 class="view-title">Inspect captured prices</h2>
         <p class="view-copy">
-          Choose a tracked product and date window from the filters to load its captured price timeline and source links.
+          Choose a tracked product, source, and date window to load its captured price timeline and source links.
         </p>
       </div>
 
@@ -81,6 +90,25 @@ function clearRange() {
             aria-label="Select history product"
             @select-product="emit('selectProduct', $event)"
           />
+
+          <label class="chart-filter">
+            <span class="chart-filter__label">Source</span>
+            <select
+              class="chart-filter__select"
+              :value="selectedSource"
+              :disabled="sourcesLoading"
+              aria-label="History source"
+              @change="handleSourceChange"
+            >
+              <option
+                v-for="option in sourceOptions"
+                :key="option.source_name"
+                :value="option.source_name"
+              >
+                {{ option.source_label }}
+              </option>
+            </select>
+          </label>
 
           <label class="chart-filter">
             <span class="chart-filter__label">Start date</span>

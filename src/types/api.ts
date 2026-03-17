@@ -12,6 +12,21 @@ export interface RootResponse {
   status: 'ok'
 }
 
+export interface SourceMetadata {
+  source_name: string
+  source_label: string
+}
+
+export interface SourceOption extends SourceMetadata {
+  active: boolean
+}
+
+export type SourceFilterValue = string
+
+export interface SourcesResponse {
+  sources: SourceOption[]
+}
+
 export interface TrackedProduct {
   id: string
   product_title: string
@@ -67,11 +82,14 @@ export interface ProductHistoryEntry {
   currency: string
   seller_name: string | null
   search_run_id: string
+  source_name: string
+  source_label: string
 }
 
 export interface ProductHistoryResponse {
   product_id: string
   product_title: string
+  source_filter: SourceFilterValue
   limit: number
   offset: number
   has_more: boolean
@@ -85,7 +103,11 @@ export type PriceHistoryPeriod = 'day' | 'week' | 'month'
 
 export interface PriceHistoryMinimumEntry extends ProductHistoryEntry {
   period_start: string
-  source_product_title?: string
+  source_product_title: string
+}
+
+export interface PriceHistoryMinimumSeries extends SourceMetadata {
+  items: PriceHistoryMinimumEntry[]
 }
 
 export interface PriceHistoryMinimumsResponse {
@@ -95,6 +117,8 @@ export interface PriceHistoryMinimumsResponse {
   period: PriceHistoryPeriod
   start_at: string
   end_at: string
+  source_filter: SourceFilterValue
+  series: PriceHistoryMinimumSeries[]
   items: PriceHistoryMinimumEntry[]
 }
 
@@ -136,11 +160,14 @@ export interface LegacyProductHistoryEntryResponse {
   currency: string
   seller_name: string | null
   search_run_id: string
+  source_name?: string
+  source_label?: string
 }
 
 export interface LegacyProductHistoryResponse {
   product_id: string
   product_title?: string
+  source_filter?: string
   limit: number
   offset: number
   has_more: boolean
@@ -152,6 +179,13 @@ export interface LegacyProductHistoryResponse {
 
 export interface LegacyPriceHistoryMinimumEntryResponse extends LegacyProductHistoryEntryResponse {
   period_start: string
+  source_product_title?: string
+}
+
+export interface LegacyPriceHistoryMinimumSeriesResponse {
+  source_name?: string
+  source_label?: string
+  items: LegacyPriceHistoryMinimumEntryResponse[]
 }
 
 export interface LegacyPriceHistoryMinimumsResponse {
@@ -161,5 +195,7 @@ export interface LegacyPriceHistoryMinimumsResponse {
   period: PriceHistoryPeriod
   start_at: string
   end_at: string
+  source_filter?: string
+  series?: LegacyPriceHistoryMinimumSeriesResponse[]
   items: LegacyPriceHistoryMinimumEntryResponse[]
 }

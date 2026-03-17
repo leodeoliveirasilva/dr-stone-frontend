@@ -4,6 +4,7 @@ import { apiRequest } from '@/lib/api-client'
 import type {
   CollectResult,
   LegacyPriceHistoryMinimumEntryResponse,
+  LegacyPriceHistoryMinimumSeriesResponse,
   LegacyPriceHistoryMinimumsResponse,
   LegacyProductHistoryEntryResponse,
   LegacyProductHistoryResponse,
@@ -13,11 +14,42 @@ import type {
   ProductHistoryEntry,
   ProductHistoryResponse,
   SearchRunsResponse,
+  SourceFilterValue,
+  SourceMetadata,
+  SourceOption,
+  SourcesResponse,
   TrackedProduct,
   UpsertTrackedProductPayload
 } from '@/types/api'
 
 const DEFAULT_HISTORY_PAGE_SIZE = 10
+export const ALL_SOURCES_FILTER = 'all' as const
+
+function formatSourceLabel(sourceName: string) {
+  return sourceName
+    .split(/[-_]/g)
+    .filter(Boolean)
+    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+    .join(' ')
+}
+
+function normalizeSourceMetadata(
+  source: Partial<SourceMetadata> | null | undefined,
+  fallbackLabel?: string | null
+): SourceMetadata {
+  const sourceName = source?.source_name?.trim() || 'unknown'
+  const sourceLabel = source?.source_label?.trim() || fallbackLabel?.trim() || formatSourceLabel(sourceName)
+
+  return {
+    source_name: sourceName,
+    source_label: sourceLabel
+  }
+}
+
+function normalizeSourceFilter(source: string | null | undefined): SourceFilterValue {
+  const normalized = source?.trim()
+  return normalized || ALL_SOURCES_FILTER
+}
 
 function normalizeTrackedProduct(product: LegacyTrackedProductResponse): TrackedProduct {
   const searchTerms = Array.isArray(product.search_terms)
@@ -38,6 +70,8 @@ function normalizeTrackedProduct(product: LegacyTrackedProductResponse): Tracked
 }
 
 function normalizeHistoryEntry(entry: LegacyProductHistoryEntryResponse): ProductHistoryEntry {
+  const source = normalizeSourceMetadata(entry, entry.seller_name)
+
   return {
     captured_at: entry.captured_at,
     product_title: entry.product_title,
@@ -45,19 +79,23 @@ function normalizeHistoryEntry(entry: LegacyProductHistoryEntryResponse): Produc
     price: entry.price ?? entry.price_value ?? '0',
     currency: entry.currency,
     seller_name: entry.seller_name,
-    search_run_id: entry.search_run_id
+    search_run_id: entry.search_run_id,
+    source_name: source.source_name,
+    source_label: source.source_label
   }
 }
 
 function normalizeHistoryResponse(
   response: LegacyProductHistoryResponse | LegacyProductHistoryEntryResponse[],
   trackedProductId: string,
-  trackedProductTitle = ''
+  trackedProductTitle = '',
+  sourceFilter = ALL_SOURCES_FILTER
 ): ProductHistoryResponse {
   if (Array.isArray(response)) {
     return {
       product_id: trackedProductId,
       product_title: trackedProductTitle,
+      source_filter: normalizeSourceFilter(sourceFilter),
       limit: response.length,
       offset: 0,
       has_more: false,
@@ -71,6 +109,7 @@ function normalizeHistoryResponse(
   return {
     product_id: response.product_id,
     product_title: response.product_title ?? trackedProductTitle,
+    source_filter: normalizeSourceFilter(response.source_filter ?? sourceFilter),
     limit: response.limit,
     offset: response.offset,
     has_more: response.has_more,
@@ -82,9 +121,50 @@ function normalizeHistoryResponse(
 }
 
 function normalizePriceHistoryMinimumEntry(entry: LegacyPriceHistoryMinimumEntryResponse) {
+  const normalizedHistoryEntry = normalizeHistoryEntry(entry)
+
   return {
-    ...normalizeHistoryEntry(entry),
-    period_start: entry.period_start
+    ...normalizedHistoryEntry,
+    period_start: entry.period_start,
+    source_product_title: entry.source_product_title ?? normalizedHistoryEntry.product_title
+  }
+}
+
+function normalizePriceHistoryMinimumSeries(
+  series: LegacyPriceHistoryMinimumSeriesResponse
+) {
+  const source = normalizeSourceMetadata(series)
+
+  return {
+    source_name: source.source_name,
+    source_label: source.source_label,
+    items: series.items.map((entry) =>
+      normalizePriceHistoryMinimumEntry({
+        ...entry,
+        source_name: entry.source_name ?? source.source_name,
+        source_label: entry.source_label ?? source.source_label
+      })
+    )
+  }
+}
+
+function flattenMinimumSeriesItems(seriesCollection: PriceHistoryMinimumsResponse['series']) {
+  return seriesCollection.flatMap((series) => series.items)
+}
+
+export async function fetchSources(): Promise<SourcesResponse> {
+  const response = await apiRequest<SourcesResponse>('/sources')
+
+  return {
+    sources: response.sources.map((source) => {
+      const metadata = normalizeSourceMetadata(source)
+
+      return {
+        source_name: metadata.source_name,
+        source_label: metadata.source_label,
+        active: Boolean(source.active)
+      } satisfies SourceOption
+    })
   }
 }
 
@@ -93,18 +173,40 @@ export async function fetchPriceHistoryMinimums(params: {
   granularity: PriceHistoryPeriod
   startAt: string
   endAt: string
+  source?: SourceFilterValue
 }) {
+  const sourceFilter = normalizeSourceFilter(params.source)
   const searchParams = new URLSearchParams({
     product_id: params.productId,
     granularity: params.granularity,
     start_at: params.startAt,
-    end_at: params.endAt
+    end_at: params.endAt,
+    source: sourceFilter
   })
   const response = await apiRequest<LegacyPriceHistoryMinimumsResponse>(
     `/price-history/minimums?${searchParams.toString()}`
   )
   const granularity = response.granularity ?? response.period
-  const productTitle = response.product_title ?? response.items[0]?.product_title ?? ''
+  const normalizedSeries =
+    response.series?.length
+      ? response.series.map(normalizePriceHistoryMinimumSeries)
+      : [
+          {
+            ...normalizeSourceMetadata(
+              {
+                source_name: sourceFilter !== ALL_SOURCES_FILTER ? sourceFilter : response.items[0]?.source_name,
+                source_label: response.items[0]?.source_label
+              },
+              response.items[0]?.seller_name
+            ),
+            items: response.items.map(normalizePriceHistoryMinimumEntry)
+          }
+        ].filter((series) => series.items.length)
+  const normalizedItems = normalizedSeries.length
+    ? flattenMinimumSeriesItems(normalizedSeries)
+    : response.items.map(normalizePriceHistoryMinimumEntry)
+  const productTitle = response.product_title ?? normalizedItems[0]?.product_title ?? ''
+  const normalizedSourceFilter = normalizeSourceFilter(response.source_filter ?? sourceFilter)
 
   return {
     product_id: response.product_id,
@@ -113,7 +215,9 @@ export async function fetchPriceHistoryMinimums(params: {
     period: granularity,
     start_at: response.start_at,
     end_at: response.end_at,
-    items: response.items.map(normalizePriceHistoryMinimumEntry)
+    source_filter: normalizedSourceFilter,
+    series: normalizedSeries,
+    items: normalizedItems
   } satisfies PriceHistoryMinimumsResponse
 }
 
@@ -126,6 +230,7 @@ export function useDrStoneApi() {
   const historyLoadingMore = shallowRef(false)
   const historyStartAt = shallowRef<string | null>(null)
   const historyEndAt = shallowRef<string | null>(null)
+  const historySource = shallowRef<SourceFilterValue>(ALL_SOURCES_FILTER)
   const historyNextOffset = shallowRef<number | null>(null)
 
   const productsLoading = shallowRef(false)
@@ -186,6 +291,7 @@ export function useDrStoneApi() {
       limit?: number
       startAt?: string | null
       endAt?: string | null
+      source?: SourceFilterValue
     } = {}
   ) {
     const limit = options.limit ?? DEFAULT_HISTORY_PAGE_SIZE
@@ -193,6 +299,7 @@ export function useDrStoneApi() {
     selectedProductId.value = trackedProductId
     historyStartAt.value = options.startAt ?? null
     historyEndAt.value = options.endAt ?? null
+    historySource.value = normalizeSourceFilter(options.source)
     historyHasMore.value = false
     historyNextOffset.value = null
     historyRows.value = []
@@ -205,10 +312,16 @@ export function useDrStoneApi() {
       if (historyEndAt.value) {
         searchParams.set('end_at', historyEndAt.value)
       }
+      searchParams.set('source', historySource.value)
       const response = await apiRequest<LegacyProductHistoryResponse | LegacyProductHistoryEntryResponse[]>(
         `/tracked-products/${trackedProductId}/history?${searchParams.toString()}`
       )
-      const normalized = normalizeHistoryResponse(response, trackedProductId, selectedProduct.value?.product_title ?? '')
+      const normalized = normalizeHistoryResponse(
+        response,
+        trackedProductId,
+        selectedProduct.value?.product_title ?? '',
+        historySource.value
+      )
       historyRows.value = normalized.items
       historyHasMore.value = normalized.has_more
       historyNextOffset.value = normalized.next_offset
@@ -240,13 +353,15 @@ export function useDrStoneApi() {
       if (historyEndAt.value) {
         searchParams.set('end_at', historyEndAt.value)
       }
+      searchParams.set('source', historySource.value)
       const response = await apiRequest<LegacyProductHistoryResponse | LegacyProductHistoryEntryResponse[]>(
         `/tracked-products/${selectedProductId.value}/history?${searchParams.toString()}`
       )
       const normalized = normalizeHistoryResponse(
         response,
         selectedProductId.value,
-        selectedProduct.value?.product_title ?? ''
+        selectedProduct.value?.product_title ?? '',
+        historySource.value
       )
       historyRows.value = [...historyRows.value, ...normalized.items]
       historyHasMore.value = normalized.has_more
@@ -329,6 +444,7 @@ export function useDrStoneApi() {
     historyLoadingMore,
     historyStartAt,
     historyEndAt,
+    historySource,
     selectedProduct,
     selectedProductId,
     productsLoading,

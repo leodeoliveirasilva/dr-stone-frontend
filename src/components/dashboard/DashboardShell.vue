@@ -1,18 +1,23 @@
 <script setup lang="ts">
-import { computed, onMounted, shallowRef, watch } from 'vue'
+import { computed, onMounted, ref, shallowRef, watch } from 'vue'
 
 import { useDashboardNavigation } from '@/composables/useDashboardNavigation'
 import { useDashboardOverview } from '@/composables/useDashboardOverview'
 import { formatDate } from '@/lib/formatters'
-import { useDrStoneApi } from '@/composables/useDrStoneApi'
-import type { TrackedProduct, UpsertTrackedProductPayload } from '@/types/api'
+import { ALL_SOURCES_FILTER, fetchSources, useDrStoneApi } from '@/composables/useDrStoneApi'
+import type { SourceOption, TrackedProduct, UpsertTrackedProductPayload } from '@/types/api'
 
 import DashboardOverview from './DashboardOverview.vue'
 import DashboardSidebar from './DashboardSidebar.vue'
 import HistoryWorkspace from './HistoryWorkspace.vue'
 import ProductsWorkspace from './ProductsWorkspace.vue'
 import RunsWorkspace from './RunsWorkspace.vue'
-import type { DashboardOverviewGranularity, DashboardOverviewRange, DashboardTab } from './dashboard.types'
+import type {
+  DashboardOverviewGranularity,
+  DashboardOverviewRange,
+  DashboardOverviewSourceFilterValue,
+  DashboardTab
+} from './dashboard.types'
 
 const todayUtc = new Date().toISOString().slice(0, 10)
 const { activeTab, navigateToTab } = useDashboardNavigation()
@@ -42,7 +47,11 @@ const sidebarOpen = shallowRef(false)
 const overviewProductId = shallowRef<string | null>(null)
 const overviewRange = shallowRef<DashboardOverviewRange>('30d')
 const overviewGranularity = shallowRef<DashboardOverviewGranularity>('day')
+const overviewSource = shallowRef<DashboardOverviewSourceFilterValue>(ALL_SOURCES_FILTER)
+const historySource = shallowRef<DashboardOverviewSourceFilterValue>(ALL_SOURCES_FILTER)
 const historyRange = shallowRef(buildDefaultHistoryRange())
+const availableSources = ref<SourceOption[]>([])
+const sourcesLoading = shallowRef(false)
 
 const {
   products,
@@ -83,6 +92,14 @@ const editingProduct = computed<TrackedProduct | null>(() => {
 })
 
 const activeProducts = computed(() => products.value.filter((product) => Boolean(product.active)).length)
+const sourceOptions = computed<SourceOption[]>(() => [
+  {
+    source_name: ALL_SOURCES_FILTER,
+    source_label: 'All sources',
+    active: true
+  },
+  ...availableSources.value
+])
 
 const runSuccessRate = computed(() => {
   if (!runs.value.length) {
@@ -133,7 +150,18 @@ const currentTabMeta = computed(() => {
 })
 
 async function loadInitialData() {
-  await Promise.all([refreshProducts(true), refreshRuns(selectedDate.value, 40)])
+  sourcesLoading.value = true
+  try {
+    const [sourcesResponse] = await Promise.all([
+      fetchSources(),
+      refreshProducts(true),
+      refreshRuns(selectedDate.value, 40)
+    ])
+
+    availableSources.value = sourcesResponse.sources.filter((source) => source.active)
+  } finally {
+    sourcesLoading.value = false
+  }
 }
 
 function setActiveTab(tab: DashboardTab) {
@@ -178,7 +206,8 @@ async function handleDelete(productId: string) {
 async function handleHistory(productId: string) {
   await loadHistory(productId, {
     startAt: historyRange.value.startAt,
-    endAt: historyRange.value.endAt
+    endAt: historyRange.value.endAt,
+    source: historySource.value
   })
   setActiveTab('history')
 }
@@ -190,12 +219,27 @@ async function handleHistoryRangeChange(range: { startAt: string | null; endAt: 
   }
   await loadHistory(selectedProductId.value, {
     startAt: range.startAt,
-    endAt: range.endAt
+    endAt: range.endAt,
+    source: historySource.value
   })
 }
 
 async function handleHistoryLoadMore() {
   await loadMoreHistory()
+}
+
+async function handleHistorySourceChange(source: DashboardOverviewSourceFilterValue) {
+  historySource.value = source
+
+  if (!selectedProductId.value) {
+    return
+  }
+
+  await loadHistory(selectedProductId.value, {
+    startAt: historyRange.value.startAt,
+    endAt: historyRange.value.endAt,
+    source
+  })
 }
 
 async function handleCollect(productId: string) {
@@ -207,9 +251,14 @@ async function handleDateRefresh() {
 }
 
 watch(
-  [products, overviewRange, overviewGranularity],
+  [products, overviewRange, overviewGranularity, overviewSource],
   ([productList]) => {
-    void loadOverviewSeries(productList, overviewRange.value, overviewGranularity.value)
+    void loadOverviewSeries(
+      productList,
+      overviewRange.value,
+      overviewGranularity.value,
+      overviewSource.value
+    )
   },
   { immediate: true }
 )
@@ -231,12 +280,25 @@ watch(
     if (!selectedProductId.value || !productList.some((product) => product.id === selectedProductId.value)) {
       void loadHistory(firstProductId!, {
         startAt: historyRange.value.startAt,
-        endAt: historyRange.value.endAt
+        endAt: historyRange.value.endAt,
+        source: historySource.value
       })
     }
   },
   { immediate: true }
 )
+
+watch(availableSources, (sources) => {
+  const sourceNames = new Set(sources.map((source) => source.source_name))
+
+  if (overviewSource.value !== ALL_SOURCES_FILTER && !sourceNames.has(overviewSource.value)) {
+    overviewSource.value = ALL_SOURCES_FILTER
+  }
+
+  if (historySource.value !== ALL_SOURCES_FILTER && !sourceNames.has(historySource.value)) {
+    historySource.value = ALL_SOURCES_FILTER
+  }
+})
 
 onMounted(async () => {
   await loadInitialData()
@@ -288,15 +350,19 @@ onMounted(async () => {
           :loading="overviewLoading"
           :products="products"
           :runs-today="runs.length"
+          :source-options="sourceOptions"
+          :sources-loading="sourcesLoading"
           :selected-product-id="selectedOverviewSeries?.productId ?? null"
           :selected-granularity="overviewGranularity"
           :selected-range="overviewRange"
+          :selected-source="overviewSource"
           :selected-series="selectedOverviewSeries"
           :series-collection="overviewSeriesCollection"
           :success-rate="runSuccessRate"
           @select-product="overviewProductId = $event"
           @select-granularity="overviewGranularity = $event"
           @select-range="overviewRange = $event"
+          @select-source="overviewSource = $event"
         />
 
         <ProductsWorkspace
@@ -324,11 +390,15 @@ onMounted(async () => {
           :loading="historyLoading"
           :products="products"
           :rows="historyRows"
+          :source-options="sourceOptions"
+          :sources-loading="sourcesLoading"
+          :selected-source="historySource"
           :selected-product="selectedProduct"
           :selected-product-id="selectedProductId"
           @load-more="handleHistoryLoadMore"
           @range-change="handleHistoryRangeChange"
           @select-product="handleHistory"
+          @select-source="handleHistorySourceChange"
         />
 
         <RunsWorkspace v-else v-model="selectedDate" :loading="runsLoading" :runs="runs" @refresh="handleDateRefresh" />

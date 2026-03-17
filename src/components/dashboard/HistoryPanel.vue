@@ -69,6 +69,7 @@ watch(sentinelRef, () => {
         <thead>
           <tr>
             <th>Captured</th>
+            <th>Source</th>
             <th>Product</th>
             <th>Price</th>
             <th>Seller</th>
@@ -77,13 +78,14 @@ watch(sentinelRef, () => {
         </thead>
         <tbody>
           <tr v-if="loading">
-            <td colspan="5" class="empty-cell">Loading history...</td>
+            <td colspan="6" class="empty-cell">Loading history...</td>
           </tr>
           <tr v-else-if="!rows.length">
-            <td colspan="5" class="empty-cell">No history available for the selected product.</td>
+            <td colspan="6" class="empty-cell">No history available for the selected product.</td>
           </tr>
           <tr v-for="row in rows" :key="`${row.search_run_id}-${row.captured_at}-${row.canonical_url}`">
             <td data-label="Captured">{{ formatDateTime(row.captured_at) }}</td>
+            <td data-label="Source">{{ row.source_label }}</td>
             <td data-label="Product">{{ row.product_title }}</td>
             <td data-label="Price">{{ formatCurrency(Number(row.price), row.currency) }}</td>
             <td data-label="Seller">{{ row.seller_name || 'unknown' }}</td>
