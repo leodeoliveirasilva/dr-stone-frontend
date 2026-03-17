@@ -4,6 +4,8 @@ import { computed } from 'vue'
 import { formatCurrency } from '@/lib/formatters'
 import type { DashboardOverviewSourceSeries } from './dashboard.types'
 
+let nextChartId = 0
+
 const props = defineProps<{
   series: DashboardOverviewSourceSeries[]
 }>()
@@ -11,6 +13,32 @@ const props = defineProps<{
 const chartWidth = 760
 const chartHeight = 280
 const padding = { top: 22, right: 18, bottom: 36, left: 18 }
+const chartId = `trend-chart-${nextChartId++}`
+
+function withAlpha(color: string, alpha: number) {
+  const normalized = color.trim()
+
+  if (normalized.startsWith('#')) {
+    const hex = normalized.slice(1)
+    const expandedHex =
+      hex.length === 3
+        ? hex
+            .split('')
+            .map((char) => `${char}${char}`)
+            .join('')
+        : hex
+
+    if (expandedHex.length === 6) {
+      const red = Number.parseInt(expandedHex.slice(0, 2), 16)
+      const green = Number.parseInt(expandedHex.slice(2, 4), 16)
+      const blue = Number.parseInt(expandedHex.slice(4, 6), 16)
+
+      return `rgba(${red}, ${green}, ${blue}, ${alpha})`
+    }
+  }
+
+  return normalized
+}
 
 const chartMetrics = computed(() => {
   const visibleSeries = props.series.filter((series) => series.points.length)
@@ -23,6 +51,8 @@ const chartMetrics = computed(() => {
         sourceName: string
         sourceLabel: string
         colorToken: string
+        areaGradientId: string
+        areaGradientStops: Array<{ offset: string; color: string }>
         areaPath: string
         linePath: string
         coordinates: Array<{
@@ -86,10 +116,12 @@ const chartMetrics = computed(() => {
       sourceName: series.sourceName,
       sourceLabel: series.sourceLabel,
       colorToken: series.colorToken,
-      areaPath:
-        visibleSeries.length === 1
-          ? `${linePath} L ${lastPoint.x.toFixed(2)} ${(chartHeight - padding.bottom).toFixed(2)} L ${firstPoint.x.toFixed(2)} ${(chartHeight - padding.bottom).toFixed(2)} Z`
-          : '',
+      areaGradientId: `${chartId}-${series.sourceName}-area`,
+      areaGradientStops: [
+        { offset: '0%', color: withAlpha(series.colorToken, visibleSeries.length === 1 ? 0.34 : 0.24) },
+        { offset: '100%', color: withAlpha(series.colorToken, 0.04) }
+      ],
+      areaPath: `${linePath} L ${lastPoint.x.toFixed(2)} ${(chartHeight - padding.bottom).toFixed(2)} L ${firstPoint.x.toFixed(2)} ${(chartHeight - padding.bottom).toFixed(2)} Z`,
       linePath,
       coordinates,
       focusPoint: visibleSeries.length === 1 ? { x: lastPoint.x, y: lastPoint.y } : null
@@ -148,9 +180,21 @@ const chartMetrics = computed(() => {
       aria-label="Price history minimums chart"
     >
       <defs>
-        <linearGradient id="trendAreaGradient" x1="0%" x2="0%" y1="0%" y2="100%">
-          <stop offset="0%" stop-color="rgba(83, 141, 255, 0.34)" />
-          <stop offset="100%" stop-color="rgba(83, 141, 255, 0.03)" />
+        <linearGradient
+          v-for="source in chartMetrics.series"
+          :id="source.areaGradientId"
+          :key="source.areaGradientId"
+          x1="0%"
+          x2="0%"
+          y1="0%"
+          y2="100%"
+        >
+          <stop
+            v-for="stop in source.areaGradientStops"
+            :key="stop.offset"
+            :offset="stop.offset"
+            :stop-color="stop.color"
+          />
         </linearGradient>
       </defs>
 
@@ -170,6 +214,7 @@ const chartMetrics = computed(() => {
           v-if="source.areaPath"
           class="trend-chart__area"
           :d="source.areaPath"
+          :style="{ fill: `url(#${source.areaGradientId})` }"
         />
         <path
           v-if="source.linePath"

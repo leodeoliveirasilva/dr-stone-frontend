@@ -660,7 +660,7 @@ button {
 }
 
 .trend-chart__area {
-  fill: url(#trendAreaGradient);
+  pointer-events: none;
 }
 
 .trend-chart__line {
