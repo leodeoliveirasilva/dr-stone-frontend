@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, useId } from 'vue'
 
 import { formatCurrency } from '@/lib/formatters'
 import type { DashboardOverviewSourceSeries } from './dashboard.types'
-
-let nextChartId = 0
 
 const props = defineProps<{
   series: DashboardOverviewSourceSeries[]
@@ -13,7 +11,7 @@ const props = defineProps<{
 const chartWidth = 760
 const chartHeight = 280
 const padding = { top: 22, right: 18, bottom: 36, left: 18 }
-const chartId = `trend-chart-${nextChartId++}`
+const chartId = `trend-chart-${useId()}`
 
 function withAlpha(color: string, alpha: number) {
   const normalized = color.trim()
