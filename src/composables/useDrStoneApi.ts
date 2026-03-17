@@ -424,7 +424,8 @@ export function useDrStoneApi() {
     setStatus('Running manual collection...')
     try {
       const result = await apiRequest<CollectResult>(`/tracked-products/${productId}?action=collect`, {
-        method: 'POST'
+        method: 'POST',
+        body: JSON.stringify({})
       })
       await refreshRuns(new Date().toISOString().slice(0, 10))
       setStatus(
